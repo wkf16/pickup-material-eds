@@ -4,7 +4,543 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Keithley 6514 WebUI</title>
-    <link rel="stylesheet" href="/static/style.css" />
+    <style>
+:root {
+  --bg: #071018;
+  --bg-soft: #0d1721;
+  --card: rgba(11, 23, 33, 0.84);
+  --line: rgba(255, 255, 255, 0.08);
+  --text: #f3f8fb;
+  --muted: #91a4b1;
+  --green: #7effb2;
+  --amber: #ffb24d;
+  --blue: #59b8ff;
+  --danger: #ff7f7f;
+  --shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  font-family: "Avenir Next", "Segoe UI Variable", "IBM Plex Sans", "PingFang SC", "Noto Sans SC", sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(89, 184, 255, 0.18), transparent 28%),
+    radial-gradient(circle at top right, rgba(255, 178, 77, 0.16), transparent 24%),
+    linear-gradient(135deg, #071018 0%, #0a131c 48%, #09141b 100%);
+  min-height: 100vh;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.2));
+  pointer-events: none;
+}
+
+.shell {
+  width: min(1400px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 28px 0 40px;
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 28px 30px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(19, 34, 47, 0.92), rgba(8, 17, 24, 0.92));
+  box-shadow: var(--shadow);
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: var(--amber);
+  font-size: 0.82rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  margin: 0 0 10px;
+  font-size: clamp(2rem, 5vw, 3.6rem);
+  line-height: 0.95;
+}
+
+.lede {
+  margin: 0;
+  max-width: 48rem;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.hero-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(110px, 1fr));
+  gap: 12px;
+  min-width: min(420px, 100%);
+}
+
+.meta-chip,
+.card,
+.dataset-row,
+.toggle {
+  backdrop-filter: blur(10px);
+}
+
+.meta-chip {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.meta-chip span,
+.card-head span,
+.group-title,
+.stats article span,
+.hint,
+.dataset-row span,
+label span {
+  color: var(--muted);
+}
+
+.meta-chip strong {
+  font-size: 1.05rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.card {
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.scope-card,
+.dataset-card,
+.tutorial-card {
+  grid-column: 2;
+}
+
+.control-card,
+.recording-card,
+.scpi-card {
+  grid-column: 1;
+}
+
+.preview-card,
+.contract-card {
+  grid-column: 1 / -1;
+}
+
+.card-subhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 22px 0 12px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.card-subhead h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.card-subhead span {
+  color: var(--muted);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.card-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.group {
+  margin-bottom: 18px;
+}
+
+.group-title {
+  margin: 0 0 10px;
+  font-size: 0.84rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+.pill-row,
+.action-row,
+.quick-row,
+.command-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+button,
+.dataset-actions a,
+input {
+  font: inherit;
+}
+
+button,
+.dataset-actions a {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 10px 14px;
+  color: var(--text);
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+button:hover,
+.dataset-actions a:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+button.active {
+  border-color: rgba(126, 255, 178, 0.8);
+  background: rgba(126, 255, 178, 0.14);
+  color: var(--green);
+}
+
+button.primary {
+  background: linear-gradient(135deg, rgba(126, 255, 178, 0.26), rgba(89, 184, 255, 0.2));
+  border-color: rgba(126, 255, 178, 0.45);
+}
+
+button.secondary {
+  border-color: rgba(255, 178, 77, 0.45);
+  color: var(--amber);
+}
+
+.toggle-list {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.toggle input {
+  inline-size: 18px;
+  block-size: 18px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stats.slim {
+  margin-top: 18px;
+}
+
+.stats article {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.stats article strong {
+  font-size: 1.05rem;
+}
+
+canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: #09131a;
+}
+
+.form-grid {
+  display: grid;
+  gap: 12px;
+}
+
+label {
+  display: grid;
+  gap: 8px;
+}
+
+input[type="text"],
+input[type="number"] {
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.action-row {
+  margin-top: 16px;
+}
+
+.hint {
+  margin: 16px 0 0;
+  line-height: 1.7;
+}
+
+.command-row {
+  align-items: center;
+}
+
+.command-row input {
+  flex: 1 1 220px;
+}
+
+.quick-row {
+  margin-top: 14px;
+}
+
+.scpi-console {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.scpi-row {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.scpi-row.ok {
+  border-color: rgba(126, 255, 178, 0.18);
+}
+
+.scpi-row.error {
+  border-color: rgba(255, 127, 127, 0.22);
+}
+
+.scpi-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.scpi-tag,
+.scpi-arrow {
+  color: var(--amber);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dataset-list {
+  display: grid;
+  gap: 12px;
+}
+
+.dataset-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.dataset-row div {
+  display: grid;
+  gap: 4px;
+}
+
+.dataset-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+.contract-list {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 10px;
+  line-height: 1.7;
+}
+
+.tutorial-body {
+  display: grid;
+  gap: 14px;
+}
+
+.tutorial-body article {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.tutorial-body h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.tutorial-body p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.75;
+}
+
+.tutorial-body .contract-list {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--muted);
+  line-height: 1.85;
+}
+
+.tutorial-body h3 .article-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(89, 184, 255, 0.12);
+  color: var(--blue);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+
+.toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  min-width: 220px;
+  max-width: 420px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(10, 19, 27, 0.92);
+  color: var(--text);
+  transform: translateY(18px);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.toast.visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.toast[data-tone="ok"] {
+  border-color: rgba(126, 255, 178, 0.45);
+}
+
+.toast[data-tone="error"] {
+  border-color: rgba(255, 127, 127, 0.45);
+}
+
+@media (max-width: 1100px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .scope-card,
+  .preview-card,
+  .dataset-card,
+  .contract-card,
+  .tutorial-card,
+  .control-card,
+  .recording-card,
+  .scpi-card {
+    grid-column: auto;
+  }
+
+  .hero {
+    flex-direction: column;
+  }
+
+  .hero-meta {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .shell {
+    width: min(100% - 20px, 1400px);
+    padding-top: 14px;
+  }
+
+  .hero,
+  .card {
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  .dataset-row {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-meta {
+    grid-template-columns: 1fr;
+  }
+}
+
+</style>
   </head>
   <body>
     <div class="shell">
@@ -31,61 +567,6 @@
       </header>
 
       <main class="grid">
-        <section class="card tutorial-card">
-          <div class="card-head">
-            <h2>6514 使用 / 调试教程</h2>
-            <span>guide</span>
-          </div>
-          <div class="tutorial-body tutorial-grid">
-            <article>
-              <h3>1. 启动机器</h3>
-              <p>先确认实验室主机 Dell Precision 3660 已上电，网线正常，等它回到内网。若你在本机上远程操作，先确认能通 <code>203-precision3660</code> 或 <code>10.24.32.98</code>。</p>
-              <p>远程登录建议直接用 <code>ssh a203@203-precision3660</code>。若只在内网可达，也可以用 <code>ssh a203@10.24.32.98</code>。进机后先看 <code>python3 --version</code> 和 webui 服务是否在 <code>:8000</code>。</p>
-            </article>
-            <article>
-              <h3>2. 基础接线</h3>
-              <p>6514 通过 RS-232 USB 串口接主机，默认链路是 <code>9600 / 8N1 / XonXoff / CR</code>。采集链路是 6514 后面板 <code>2V ANALOG OUTPUT</code> 走 BNC 到 USB-6002，DAQ 端建议用 <code>AI0 DIFF</code>。</p>
-              <p>传感器接 6514 三轴输入，铜箔屏蔽或参考屏蔽层接 <code>COMMON</code>。若是做空气麦或贴喇叭实验，线缆一定要先固定，避免摩擦电噪声。</p>
-            </article>
-            <article>
-              <h3>3. 调零时怎么接</h3>
-              <p>调零阶段不要先接传感器。最稳妥的做法是给 6514 输入上三轴短路帽，或者把中心导体与屏蔽短接，形成"输入短路"状态。这样做是为了让 <code>Zero Check</code> 和 <code>Zero Correct</code> 在已知零输入下完成。</p>
-              <p>如果已经接了传感器，先断开传感器，再调零；不要带着漂移源直接做零校准。调零完成后，再恢复传感器和 DAQ 链路。</p>
-            </article>
-            <article>
-              <h3>4. 标准调零顺序</h3>
-              <p>推荐顺序直接按现有脚本和实验文档来：<code>*RST</code> → <code>*CLS</code> → <code>SYST:ZCH ON</code> → <code>FUNC "VOLT"</code> → <code>VOLT:RANG 2</code> 或 <code>20</code> → 关闭 <code>AUTO RANGE</code> / <code>AZER</code> / 数字滤波 → <code>SYST:ZCOR ON</code> → <code>SYST:ZCH OFF</code>。</p>
-              <p>调零完成后立刻用 <code>FUNC?</code>、<code>RANG?</code>、<code>SYST:ZCH?</code>、<code>SYST:ZCOR?</code> 回读确认，不要只凭前面板感觉。</p>
-            </article>
-            <article>
-              <h3>5. 开始测量前的检查</h3>
-              <p>先发 <code>*IDN?</code>，确认回传里有 <code>MODEL 6514</code> 和序列号。再确认当前功能、量程、Zero Check 状态都对。若是看模拟输出链路，优先用 <code>VOLT</code> 模式，小信号先锁 <code>2V</code>，不够再升到 <code>20V</code>。</p>
-              <p>如果是 USB-6002 同步采集，确认 BNC 已接，DAQ 侧是差分输入，采样率先从 <code>5 kS/s</code> 或 <code>10 kS/s</code> 起，不要一上来就堆到最大。</p>
-            </article>
-            <article>
-              <h3>6. 录制与调试</h3>
-              <p>录制前先用下面的 COM/SCPI 控制台跑一遍 <code>*IDN?</code>、<code>FUNC?</code>、<code>RANG?</code>、<code>READ?</code>。只有这些都正常，才点录制。这样出现问题时能快速判断是串口、量程、还是采样链路的问题。</p>
-              <p>如果需要跑仓库里的裸脚本，可在实验机上执行 <code>python scripts/capture_freqresp.py --duration 12 --range 2 --out data/exp01/test.npy</code>。看到提示后再播激励信号。</p>
-            </article>
-            <article>
-              <h3>7. 常用命令速查</h3>
-              <ul class="contract-list">
-                <li><code>*IDN?</code> 识别仪器和序列号</li>
-                <li><code>FUNC?</code> / <code>FUNC "VOLT"</code> 查询或切换功能</li>
-                <li><code>VOLT:RANG?</code> / <code>VOLT:RANG 2</code> 查询或设置量程</li>
-                <li><code>SYST:ZCH ON|OFF</code> 开关 Zero Check</li>
-                <li><code>SYST:ZCOR ON</code> 做一次 Zero Correct</li>
-                <li><code>READ?</code> 拉一笔当前读数</li>
-              </ul>
-            </article>
-            <article>
-              <h3>8. 常见错误</h3>
-              <p>拿不到 <code>*IDN?</code> 时，优先怀疑 COM 口、波特率、Xon/Xoff、终止符是否还是 <code>CR</code>。读数漂得离谱时，优先怀疑没短路调零、屏蔽没接 COMMON、线缆在动、或者量程太小导致顶满。</p>
-              <p>若 WebUI 控制正常但采样没有波形，优先看 6514 到 USB-6002 的 BNC 是否接好，再看 DAQ 是否在差分模式，最后再查采样率和缓冲。</p>
-            </article>
-          </div>
-        </section>
-
         <section class="card control-card">
           <div class="card-head">
             <h2>仪器控制</h2>
@@ -149,11 +630,8 @@
             <span id="waveLabel">0 points</span>
           </div>
           <canvas id="waveCanvas" width="960" height="360"></canvas>
-        </section>
-
-        <section class="card spectrum-card">
-          <div class="card-head">
-            <h2>频谱预览</h2>
+          <div class="card-subhead">
+            <h3>频谱预览</h3>
             <span>client-side FFT</span>
           </div>
           <canvas id="spectrumCanvas" width="960" height="240"></canvas>
@@ -193,6 +671,22 @@
           </p>
         </section>
 
+        <section class="card dataset-card">
+          <div class="card-head">
+            <h2>历史录制</h2>
+            <span id="datasetCount">0 items</span>
+          </div>
+          <div class="dataset-list" id="datasetList"></div>
+        </section>
+
+        <section class="card preview-card">
+          <div class="card-head">
+            <h2>数据预览</h2>
+            <span id="previewLabel">未选择</span>
+          </div>
+          <canvas id="previewCanvas" width="960" height="220"></canvas>
+        </section>
+
         <section class="card scpi-card">
           <div class="card-head">
             <h2>COM / SCPI 控制台</h2>
@@ -216,41 +710,612 @@
           <div class="scpi-console" id="scpiLog"></div>
         </section>
 
-        <section class="card dataset-card">
+        <section class="card tutorial-card">
           <div class="card-head">
-            <h2>历史录制</h2>
-            <span id="datasetCount">0 items</span>
+            <h2>6514 使用 / 调试教程</h2>
+            <span>guide</span>
           </div>
-          <div class="dataset-list" id="datasetList"></div>
-        </section>
-
-        <section class="card preview-card">
-          <div class="card-head">
-            <h2>数据预览</h2>
-            <span id="previewLabel">未选择</span>
+          <div class="tutorial-body tutorial-grid">
+            <article>
+              <h3>1. 启动机器</h3>
+              <p>先确认实验室主机 Dell Precision 3660 已上电，网线正常，等它回到内网。若你在本机上远程操作，先确认能通 <code>203-precision3660</code> 或 <code>10.24.32.98</code>。</p>
+              <p>远程登录建议直接用 <code>ssh a203@203-precision3660</code>。若只在内网可达，也可以用 <code>ssh <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="41207371720170716f73756f72736f7879">[email&#160;protected]</a></code>。进机后先看 <code>python3 --version</code> 和 webui 服务是否在 <code>:8000</code>。</p>
+            </article>
+            <article>
+              <h3>2. 基础接线</h3>
+              <p>6514 通过 RS-232 USB 串口接主机，默认链路是 <code>9600 / 8N1 / XonXoff / CR</code>。采集链路是 6514 后面板 <code>2V ANALOG OUTPUT</code> 走 BNC 到 USB-6002，DAQ 端建议用 <code>AI0 DIFF</code>。</p>
+              <p>传感器接 6514 三轴输入，铜箔屏蔽或参考屏蔽层接 <code>COMMON</code>。若是做空气麦或贴喇叭实验，线缆一定要先固定，避免摩擦电噪声。</p>
+            </article>
+            <article>
+              <h3>3. 调零时怎么接</h3>
+              <p>调零阶段不要先接传感器。最稳妥的做法是给 6514 输入上三轴短路帽，或者把中心导体与屏蔽短接，形成"输入短路"状态。这样做是为了让 <code>Zero Check</code> 和 <code>Zero Correct</code> 在已知零输入下完成。</p>
+              <p>如果已经接了传感器，先断开传感器，再调零；不要带着漂移源直接做零校准。调零完成后，再恢复传感器和 DAQ 链路。</p>
+            </article>
+            <article>
+              <h3>4. 标准调零顺序</h3>
+              <p>推荐顺序直接按现有脚本和实验文档来：<code>*RST</code> → <code>*CLS</code> → <code>SYST:ZCH ON</code> → <code>FUNC "VOLT"</code> → <code>VOLT:RANG 2</code> 或 <code>20</code> → 关闭 <code>AUTO RANGE</code> / <code>AZER</code> / 数字滤波 → <code>SYST:ZCOR ON</code> → <code>SYST:ZCH OFF</code>。</p>
+              <p>调零完成后立刻用 <code>FUNC?</code>、<code>RANG?</code>、<code>SYST:ZCH?</code>、<code>SYST:ZCOR?</code> 回读确认，不要只凭前面板感觉。</p>
+            </article>
+            <article>
+              <h3>5. 开始测量前的检查</h3>
+              <p>先发 <code>*IDN?</code>，确认回传里有 <code>MODEL 6514</code> 和序列号。再确认当前功能、量程、Zero Check 状态都对。若是看模拟输出链路，优先用 <code>VOLT</code> 模式，小信号先锁 <code>2V</code>，不够再升到 <code>20V</code>。</p>
+              <p>如果是 USB-6002 同步采集，确认 BNC 已接，DAQ 侧是差分输入，采样率先从 <code>5 kS/s</code> 或 <code>10 kS/s</code> 起，不要一上来就堆到最大。</p>
+            </article>
+            <article>
+              <h3>6. 录制与调试</h3>
+              <p>录制前先用下面的 COM/SCPI 控制台跑一遍 <code>*IDN?</code>、<code>FUNC?</code>、<code>RANG?</code>、<code>READ?</code>。只有这些都正常，才点录制。这样出现问题时能快速判断是串口、量程、还是采样链路的问题。</p>
+              <p>如果需要跑仓库里的裸脚本，可在实验机上执行 <code>python scripts/capture_freqresp.py --duration 12 --range 2 --out data/exp01/test.npy</code>。看到提示后再播激励信号。</p>
+            </article>
+            <article>
+              <h3>7. 常用命令速查</h3>
+              <ul class="contract-list">
+                <li><code>*IDN?</code> 识别仪器和序列号</li>
+                <li><code>FUNC?</code> / <code>FUNC "VOLT"</code> 查询或切换功能</li>
+                <li><code>VOLT:RANG?</code> / <code>VOLT:RANG 2</code> 查询或设置量程</li>
+                <li><code>SYST:ZCH ON|OFF</code> 开关 Zero Check</li>
+                <li><code>SYST:ZCOR ON</code> 做一次 Zero Correct</li>
+                <li><code>READ?</code> 拉一笔当前读数</li>
+              </ul>
+            </article>
+            <article>
+              <h3>8. 常见错误</h3>
+              <p>拿不到 <code>*IDN?</code> 时，优先怀疑 COM 口、波特率、Xon/Xoff、终止符是否还是 <code>CR</code>。读数漂得离谱时，优先怀疑没短路调零、屏蔽没接 COMMON、线缆在动、或者量程太小导致顶满。</p>
+              <p>若 WebUI 控制正常但采样没有波形，优先看 6514 到 USB-6002 的 BNC 是否接好，再看 DAQ 是否在差分模式，最后再查采样率和缓冲。</p>
+            </article>
+            <article>
+              <h3>9. 接口落位 <span class="article-tag">phase 2</span></h3>
+              <p>WebUI ↔ 后端 ↔ 6514/DAQ 这条链路目前规划的接口如下，调试时可以按此核对实际对接进度。</p>
+              <ul class="contract-list">
+                <li><code>GET /api/state</code> 当前整机状态</li>
+                <li><code>POST /api/control/*</code> 功能/量程/zero-check/zero-correct</li>
+                <li><code>POST /api/recording/{start,stop}</code> 录制生命周期</li>
+                <li><code>GET /api/data/*</code> 数据列表、预览、下载</li>
+                <li><code>/ws/stream</code> 滚动波形流</li>
+                <li><code>/ws/state</code> 状态变更推送</li>
+                <li><code>/ws/snapshot</code> 已占位，待真实触发逻辑接入</li>
+              </ul>
+            </article>
           </div>
-          <canvas id="previewCanvas" width="960" height="220"></canvas>
-        </section>
-
-        <section class="card contract-card">
-          <div class="card-head">
-            <h2>接口落位</h2>
-            <span>phase 2</span>
-          </div>
-          <ul class="contract-list">
-            <li><code>GET /api/state</code> 当前整机状态</li>
-            <li><code>POST /api/control/*</code> 功能/量程/zero-check/zero-correct</li>
-            <li><code>POST /api/recording/{start,stop}</code> 录制生命周期</li>
-            <li><code>GET /api/data/*</code> 数据列表、预览、下载</li>
-            <li><code>/ws/stream</code> 滚动波形流</li>
-            <li><code>/ws/state</code> 状态变更推送</li>
-            <li><code>/ws/snapshot</code> 已占位，待真实触发逻辑接入</li>
-          </ul>
         </section>
       </main>
     </div>
 
     <aside class="toast" id="toast"></aside>
-    <script src="/static/app.js" defer></script>
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+
+(function () {
+  const startedAt = Date.now();
+  const mockState = {
+    updated_at: new Date().toISOString(),
+    control: { function: "VOLT", range: 2, zero_check: false, zero_correct: true },
+    daq: { sample_rate_hz: 50000, live_rms: 0.04, live_peak: 0.12, display_window_s: 1.0 },
+    recording: { active: false, label: "baseline", sample_count: 0, last_dataset_id: "ds_demo_01" },
+    scpi_port: "COM3 @ 9600/8N1",
+    scpi_log: [
+      { ok: true, port: "COM3", command: "*IDN?", response: "KEITHLEY INSTRUMENTS INC.,MODEL 6514,4691930,A12 /A02" }
+    ],
+    datasets: [
+      { id: "ds_demo_01", label: "baseline", created_at: new Date(startedAt - 4*60*1000).toISOString(), sample_count: 250000, duration_s: 5.0 },
+      { id: "ds_demo_02", label: "tap-test", created_at: new Date(startedAt - 12*60*1000).toISOString(), sample_count: 100000, duration_s: 2.0 }
+    ]
+  };
+  function buildPreview(label) {
+    const xs=[], ys=[];
+    for (let i=0;i<400;i++){ const t=i/400; xs.push(t); ys.push(0.6*Math.sin(2*Math.PI*6*t)+0.25*Math.sin(2*Math.PI*17*t+1.1)+0.05*(Math.random()-0.5)); }
+    return { label, time_s: xs, value: ys };
+  }
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async function (input, init) {
+    const url = typeof input === "string" ? input : input.url;
+    if (!url.startsWith("/api/")) return realFetch(input, init);
+    const respond = (b) => new Response(JSON.stringify(b), { status: 200, headers: {"Content-Type":"application/json"} });
+    if (url === "/api/state") return respond(mockState);
+    if (url === "/api/data/list") return respond({ items: mockState.datasets });
+    const m = url.match(/^\/api\/data\/([^/]+)\/preview$/);
+    if (m) { const d = mockState.datasets.find(x=>x.id===m[1]); return respond(buildPreview(d?d.label:m[1])); }
+    if (url.startsWith("/api/control/")) {
+      const body = init && init.body ? JSON.parse(init.body) : {};
+      if (url.endsWith("/function")) mockState.control.function = body.func;
+      if (url.endsWith("/range")) mockState.control.range = body.range;
+      if (url.endsWith("/zero-check")) mockState.control.zero_check = !!body.on;
+      if (url.endsWith("/zero-correct")) mockState.control.zero_correct = !!body.on;
+      if (url.endsWith("/scpi/send")) {
+        const cmd = body.command || ""; let resp = "ok";
+        if (cmd === "*IDN?") resp = "KEITHLEY INSTRUMENTS INC.,MODEL 6514,4691930,A12 /A02";
+        else if (cmd === "FUNC?") resp = '"VOLT"';
+        else if (cmd === "RANG?") resp = String(mockState.control.range);
+        else if (cmd === "READ?") resp = (Math.random()*0.1).toExponential(4) + ",+0.0E+00";
+        const entry = { ok: true, port: "COM3", command: cmd, response: resp };
+        mockState.scpi_log = [entry, ...(mockState.scpi_log || [])].slice(0, 20);
+        pushState();
+        return respond({ ok: true, entry, state: mockState });
+      }
+      mockState.updated_at = new Date().toISOString(); pushState();
+      return respond({ ok: true });
+    }
+    if (url === "/api/recording/start") {
+      const body = init && init.body ? JSON.parse(init.body) : {};
+      mockState.recording.active = true; mockState.recording.label = body.label || "baseline";
+      mockState.recording.sample_count = 0; pushState(); return respond({ ok: true });
+    }
+    if (url === "/api/recording/stop") {
+      const id = "ds_" + Math.random().toString(16).slice(2,8);
+      const ds = { id, label: mockState.recording.label, created_at: new Date().toISOString(), sample_count: mockState.recording.sample_count || 50000, duration_s: 1.0 };
+      mockState.datasets = [ds, ...mockState.datasets]; mockState.recording.active = false; mockState.recording.last_dataset_id = id;
+      pushState(); return respond({ dataset: ds });
+    }
+    return respond({ ok: true });
+  };
+  const streamListeners = new Set(); const stateListeners = new Set();
+  function pushState() { const p = JSON.stringify(mockState); stateListeners.forEach(ws => ws._emit("message", { data: p })); }
+  class FakeWS {
+    constructor(url) {
+      this.url = url; this.readyState = 0;
+      this._handlers = { open:[], message:[], close:[], error:[] };
+      setTimeout(() => {
+        this.readyState = 1; this._emit("open", {});
+        if (url.endsWith("/ws/state")) { stateListeners.add(this); this._emit("message", { data: JSON.stringify(mockState) }); }
+        if (url.endsWith("/ws/stream")) streamListeners.add(this);
+      }, 60);
+    }
+    addEventListener(t, fn) { (this._handlers[t]||[]).push(fn); }
+    removeEventListener(t, fn) { if (this._handlers[t]) this._handlers[t] = this._handlers[t].filter(h=>h!==fn); }
+    _emit(t, e) { (this._handlers[t]||[]).forEach(fn=>fn(e)); }
+    send() {} close() { streamListeners.delete(this); stateListeners.delete(this); this.readyState = 3; this._emit("close", {}); }
+  }
+  window.WebSocket = FakeWS;
+  const N = 600;
+  setInterval(() => {
+    const xs=[], ys=[]; const t0 = (Date.now()-startedAt)/1000; let rms=0, peak=0;
+    for (let i=0;i<N;i++){ const t=t0+i/N; xs.push(i/N);
+      const v = 0.6*Math.sin(2*Math.PI*8*t)+0.25*Math.sin(2*Math.PI*21*t+0.7)+0.04*(Math.random()-0.5);
+      ys.push(v); rms+=v*v; if (Math.abs(v)>peak) peak=Math.abs(v);
+    }
+    rms=Math.sqrt(rms/N); mockState.daq.live_rms=rms; mockState.daq.live_peak=peak;
+    mockState.updated_at = new Date().toISOString();
+    if (mockState.recording.active) mockState.recording.sample_count += N;
+    const frame = JSON.stringify({ time_s: xs, value: ys });
+    streamListeners.forEach(ws => ws._emit("message", { data: frame }));
+  }, 120);
+  setInterval(pushState, 1000);
+})();
+
+</script>
+<script>
+const state = {
+  appState: null,
+  datasets: [],
+  liveFrame: { time_s: [], value: [] },
+  autoPreviewedId: null,
+  scpiLog: [],
+};
+
+const el = {
+  modeBadge: document.getElementById("modeBadge"),
+  streamBadge: document.getElementById("streamBadge"),
+  stateBadge: document.getElementById("stateBadge"),
+  updatedAt: document.getElementById("updatedAt"),
+  sampleRateStat: document.getElementById("sampleRateStat"),
+  rmsStat: document.getElementById("rmsStat"),
+  peakStat: document.getElementById("peakStat"),
+  windowStat: document.getElementById("windowStat"),
+  waveLabel: document.getElementById("waveLabel"),
+  recordingStateText: document.getElementById("recordingStateText"),
+  recordingSamples: document.getElementById("recordingSamples"),
+  lastDatasetId: document.getElementById("lastDatasetId"),
+  datasetCount: document.getElementById("datasetCount"),
+  datasetList: document.getElementById("datasetList"),
+  previewLabel: document.getElementById("previewLabel"),
+  scpiPortText: document.getElementById("scpiPortText"),
+  scpiCommandInput: document.getElementById("scpiCommandInput"),
+  sendScpiBtn: document.getElementById("sendScpiBtn"),
+  scpiLog: document.getElementById("scpiLog"),
+  toast: document.getElementById("toast"),
+  startRecordingBtn: document.getElementById("startRecordingBtn"),
+  stopRecordingBtn: document.getElementById("stopRecordingBtn"),
+  recordingLabel: document.getElementById("recordingLabel"),
+  recordingDuration: document.getElementById("recordingDuration"),
+  zeroCheckToggle: document.getElementById("zeroCheckToggle"),
+  zeroCorrectToggle: document.getElementById("zeroCorrectToggle"),
+  waveCanvas: document.getElementById("waveCanvas"),
+  spectrumCanvas: document.getElementById("spectrumCanvas"),
+  previewCanvas: document.getElementById("previewCanvas"),
+};
+
+async function api(path, options = {}) {
+  const response = await fetch(path, {
+    headers: { "Content-Type": "application/json" },
+    ...options,
+  });
+  if (!response.ok) {
+    const payload = await response.text();
+    throw new Error(payload || response.statusText);
+  }
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+  return response.text();
+}
+
+function showToast(message, tone = "normal") {
+  el.toast.textContent = message;
+  el.toast.dataset.tone = tone;
+  el.toast.classList.add("visible");
+  window.clearTimeout(showToast.timer);
+  showToast.timer = window.setTimeout(() => {
+    el.toast.classList.remove("visible");
+  }, 2400);
+}
+
+function formatNumber(value, digits = 4) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "-";
+  }
+  return Number(value).toFixed(digits);
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function setActiveButtons(containerId, activeValue, key) {
+  const buttons = document.querySelectorAll(`#${containerId} button`);
+  buttons.forEach((button) => {
+    button.classList.toggle("active", button.dataset[key] === String(activeValue));
+  });
+}
+
+function renderState(appState) {
+  state.appState = appState;
+  el.modeBadge.textContent = "SIM";
+  el.updatedAt.textContent = new Date(appState.updated_at).toLocaleString();
+  el.sampleRateStat.textContent = `${appState.daq.sample_rate_hz} Hz`;
+  el.rmsStat.textContent = formatNumber(appState.daq.live_rms);
+  el.peakStat.textContent = formatNumber(appState.daq.live_peak);
+  el.windowStat.textContent = `${formatNumber(appState.daq.display_window_s, 1)} s`;
+  el.scpiPortText.textContent = appState.scpi_port || "COM?-";
+  el.recordingStateText.textContent = appState.recording.active
+    ? `recording: ${appState.recording.label}`
+    : "idle";
+  el.recordingSamples.textContent = String(appState.recording.sample_count);
+  el.lastDatasetId.textContent = appState.recording.last_dataset_id || "-";
+  el.zeroCheckToggle.checked = appState.control.zero_check;
+  el.zeroCorrectToggle.checked = appState.control.zero_correct;
+  setActiveButtons("functionButtons", appState.control.function, "func");
+  setActiveButtons("rangeButtons", appState.control.range, "range");
+  renderScpiLog(appState.scpi_log || []);
+  renderDatasets(appState.datasets || []);
+  if (
+    appState.recording.last_dataset_id &&
+    appState.recording.last_dataset_id !== state.autoPreviewedId
+  ) {
+    state.autoPreviewedId = appState.recording.last_dataset_id;
+    previewDataset(appState.recording.last_dataset_id);
+  }
+}
+
+function renderScpiLog(items) {
+  state.scpiLog = items;
+  if (!items.length) {
+    el.scpiLog.innerHTML = `<p class="empty">还没有命令记录。</p>`;
+    return;
+  }
+  el.scpiLog.innerHTML = items
+    .map(
+      (item) => `
+        <article class="scpi-row ${item.ok ? "ok" : "error"}">
+          <div class="scpi-line">
+            <span class="scpi-tag">${escapeHtml(item.port)}</span>
+            <code>${escapeHtml(item.command)}</code>
+          </div>
+          <div class="scpi-line">
+            <span class="scpi-arrow">←</span>
+            <code>${escapeHtml(item.response)}</code>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+}
+
+function renderDatasets(items) {
+  state.datasets = items;
+  el.datasetCount.textContent = `${items.length} items`;
+  if (!items.length) {
+    el.datasetList.innerHTML = `<p class="empty">还没有录制数据。</p>`;
+    return;
+  }
+  el.datasetList.innerHTML = items
+    .map(
+      (item) => `
+        <article class="dataset-row">
+          <div>
+            <strong>${escapeHtml(item.label)}</strong>
+            <span>${escapeHtml(new Date(item.created_at).toLocaleString())}</span>
+          </div>
+          <div>
+            <span>${item.sample_count} samples</span>
+            <span>${formatNumber(item.duration_s, 2)} s</span>
+          </div>
+          <div class="dataset-actions">
+            <button data-preview="${escapeHtml(item.id)}">预览</button>
+            <a href="/api/data/${encodeURIComponent(item.id)}/download">下载</a>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+  document.querySelectorAll("[data-preview]").forEach((button) => {
+    button.addEventListener("click", () => previewDataset(button.dataset.preview));
+  });
+}
+
+function drawSeries(canvas, xs, ys, { accent = "#7effb2", fill = true } = {}) {
+  const ctx = canvas.getContext("2d");
+  const width = canvas.width;
+  const height = canvas.height;
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "#09131a";
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.strokeStyle = "rgba(255,255,255,0.08)";
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 6; i += 1) {
+    const y = (height / 6) * i;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+  }
+
+  if (!xs.length || !ys.length) {
+    return;
+  }
+
+  const minX = xs[0];
+  const maxX = xs[xs.length - 1];
+  let minY = Math.min(...ys);
+  let maxY = Math.max(...ys);
+  if (Math.abs(maxY - minY) < 1e-9) {
+    minY -= 1;
+    maxY += 1;
+  }
+
+  const xScale = (value) => ((value - minX) / (maxX - minX || 1)) * width;
+  const yScale = (value) => height - ((value - minY) / (maxY - minY || 1)) * height;
+
+  if (fill) {
+    const gradient = ctx.createLinearGradient(0, 0, 0, height);
+    gradient.addColorStop(0, "rgba(126,255,178,0.26)");
+    gradient.addColorStop(1, "rgba(126,255,178,0)");
+    ctx.beginPath();
+    ctx.moveTo(xScale(xs[0]), height);
+    ys.forEach((value, index) => {
+      ctx.lineTo(xScale(xs[index]), yScale(value));
+    });
+    ctx.lineTo(xScale(xs[xs.length - 1]), height);
+    ctx.closePath();
+    ctx.fillStyle = gradient;
+    ctx.fill();
+  }
+
+  ctx.beginPath();
+  ys.forEach((value, index) => {
+    const x = xScale(xs[index]);
+    const y = yScale(value);
+    if (index === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  });
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function computeSpectrum(values) {
+  const windowSize = Math.min(256, values.length);
+  if (windowSize < 32) {
+    return { freqs: [], mags: [] };
+  }
+  const slice = values.slice(values.length - windowSize);
+  const freqs = [];
+  const mags = [];
+  for (let k = 1; k < 64; k += 1) {
+    let real = 0;
+    let imag = 0;
+    for (let n = 0; n < windowSize; n += 1) {
+      const angle = (2 * Math.PI * k * n) / windowSize;
+      real += slice[n] * Math.cos(angle);
+      imag -= slice[n] * Math.sin(angle);
+    }
+    freqs.push(k);
+    mags.push(Math.sqrt(real * real + imag * imag) / windowSize);
+  }
+  return { freqs, mags };
+}
+
+function renderLiveFrame(frame) {
+  state.liveFrame = frame;
+  el.waveLabel.textContent = `${frame.value.length} points`;
+  drawSeries(el.waveCanvas, frame.time_s, frame.value, { accent: "#7effb2", fill: true });
+  const spectrum = computeSpectrum(frame.value);
+  drawSeries(el.spectrumCanvas, spectrum.freqs, spectrum.mags, {
+    accent: "#ffb24d",
+    fill: false,
+  });
+}
+
+async function previewDataset(datasetId) {
+  try {
+    const payload = await api(`/api/data/${datasetId}/preview`);
+    el.previewLabel.textContent = `${payload.label} / ${datasetId}`;
+    drawSeries(el.previewCanvas, payload.time_s, payload.value, {
+      accent: "#59b8ff",
+      fill: false,
+    });
+  } catch (error) {
+    showToast(`预览失败: ${error.message}`, "error");
+  }
+}
+
+async function submitJSON(path, body) {
+  return api(path, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+function bindControls() {
+  document.querySelectorAll("#functionButtons button").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        await submitJSON("/api/control/function", { func: button.dataset.func });
+        showToast(`Function -> ${button.dataset.func}`);
+      } catch (error) {
+        showToast(`切换失败: ${error.message}`, "error");
+      }
+    });
+  });
+
+  document.querySelectorAll("#rangeButtons button").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        await submitJSON("/api/control/range", { range: Number(button.dataset.range) });
+        showToast(`Range -> ${button.dataset.range}`);
+      } catch (error) {
+        showToast(`切换失败: ${error.message}`, "error");
+      }
+    });
+  });
+
+  el.zeroCheckToggle.addEventListener("change", async () => {
+    try {
+      await submitJSON("/api/control/zero-check", { on: el.zeroCheckToggle.checked });
+      showToast(`Zero Check -> ${el.zeroCheckToggle.checked ? "on" : "off"}`);
+    } catch (error) {
+      showToast(`切换失败: ${error.message}`, "error");
+    }
+  });
+
+  el.zeroCorrectToggle.addEventListener("change", async () => {
+    try {
+      await submitJSON("/api/control/zero-correct", { on: el.zeroCorrectToggle.checked });
+      showToast(`Zero Correct -> ${el.zeroCorrectToggle.checked ? "on" : "off"}`);
+    } catch (error) {
+      showToast(`切换失败: ${error.message}`, "error");
+    }
+  });
+
+  el.startRecordingBtn.addEventListener("click", async () => {
+    try {
+      await submitJSON("/api/recording/start", {
+        label: el.recordingLabel.value.trim() || "baseline",
+        duration_s: Number(el.recordingDuration.value),
+      });
+      showToast("录制已开始", "ok");
+    } catch (error) {
+      showToast(`开始失败: ${error.message}`, "error");
+    }
+  });
+
+  el.stopRecordingBtn.addEventListener("click", async () => {
+    try {
+      const payload = await submitJSON("/api/recording/stop", {});
+      if (payload.dataset) {
+        showToast(`录制已保存: ${payload.dataset.label}`, "ok");
+        await previewDataset(payload.dataset.id);
+      } else {
+        showToast("当前没有活动录制", "error");
+      }
+    } catch (error) {
+      showToast(`停止失败: ${error.message}`, "error");
+    }
+  });
+
+  document.querySelectorAll("[data-scpi]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      el.scpiCommandInput.value = button.dataset.scpi;
+      await sendScpiCommand();
+    });
+  });
+
+  el.sendScpiBtn.addEventListener("click", sendScpiCommand);
+  el.scpiCommandInput.addEventListener("keydown", async (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      await sendScpiCommand();
+    }
+  });
+}
+
+async function sendScpiCommand() {
+  const command = el.scpiCommandInput.value.trim();
+  if (!command) {
+    return;
+  }
+  try {
+    const payload = await submitJSON("/api/control/scpi/send", { command });
+    renderState(payload.state);
+    showToast(`${command} -> ${payload.entry.response}`, payload.ok ? "ok" : "error");
+  } catch (error) {
+    showToast(`SCPI 发送失败: ${error.message}`, "error");
+  }
+}
+
+async function connectStream() {
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  const ws = new WebSocket(`${protocol}://${window.location.host}/ws/stream`);
+  ws.addEventListener("open", () => {
+    el.streamBadge.textContent = "已连接";
+  });
+  ws.addEventListener("message", (event) => {
+    renderLiveFrame(JSON.parse(event.data));
+  });
+  ws.addEventListener("close", () => {
+    el.streamBadge.textContent = "重连中";
+    window.setTimeout(connectStream, 1200);
+  });
+}
+
+async function connectState() {
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  const ws = new WebSocket(`${protocol}://${window.location.host}/ws/state`);
+  ws.addEventListener("open", () => {
+    el.stateBadge.textContent = "已连接";
+  });
+  ws.addEventListener("message", (event) => {
+    renderState(JSON.parse(event.data));
+  });
+  ws.addEventListener("close", () => {
+    el.stateBadge.textContent = "重连中";
+    window.setTimeout(connectState, 1200);
+  });
+}
+
+async function bootstrap() {
+  bindControls();
+  try {
+    const appState = await api("/api/state");
+    renderState(appState);
+    const datasets = await api("/api/data/list");
+    renderDatasets(datasets.items || []);
+    connectStream();
+    connectState();
+  } catch (error) {
+    showToast(`启动失败: ${error.message}`, "error");
+  }
+}
+
+bootstrap();
+
+</script>
   </body>
 </html>

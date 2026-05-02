@@ -133,10 +133,7 @@ label span {
 }
 
 .scope-card,
-.spectrum-card,
-.preview-card,
 .dataset-card,
-.contract-card,
 .tutorial-card {
   grid-column: 2;
 }
@@ -145,6 +142,30 @@ label span {
 .recording-card,
 .scpi-card {
   grid-column: 1;
+}
+
+.preview-card,
+.contract-card {
+  grid-column: 1 / -1;
+}
+
+.card-subhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 22px 0 12px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.card-subhead h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.card-subhead span {
+  color: var(--muted);
 }
 
 .card-head {
@@ -303,10 +324,12 @@ input[type="number"] {
 
 .command-row {
   align-items: center;
+  width: 100%;
 }
 
 .command-row input {
-  flex: 1 1 220px;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .quick-row {
@@ -319,6 +342,12 @@ input[type="number"] {
   margin-top: 16px;
   max-height: 320px;
   overflow: auto;
+  width: 100%;
+}
+
+.scpi-row code {
+  word-break: break-all;
+  white-space: pre-wrap;
 }
 
 .scpi-row {
@@ -451,7 +480,6 @@ input[type="number"] {
   }
 
   .scope-card,
-  .spectrum-card,
   .preview-card,
   .dataset-card,
   .contract-card,
