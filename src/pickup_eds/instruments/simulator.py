@@ -162,8 +162,16 @@ class SimulatedBenchService:
                     scpi_log=self._scpi_log[:12],
                 )
                 return inactive_state, self._storage.get_dataset(last_dataset_id) if last_dataset_id else None
-            if self._stop_recording_task:
-                self._stop_recording_task.cancel()
+            # Don't cancel the auto-stop task if WE are it. When the
+            # duration timer fires it calls stop_recording() from inside
+            # _stop_recording_after_delay; cancelling self here would
+            # raise CancelledError at the next await, skipping the
+            # _datasets update and the WebSocket broadcast — i.e. the
+            # file lands on disk but the history list never refreshes.
+            if self._stop_recording_task is not None:
+                current = asyncio.current_task()
+                if self._stop_recording_task is not current:
+                    self._stop_recording_task.cancel()
                 self._stop_recording_task = None
             times = np.concatenate(self._record_times) if self._record_times else np.array([], dtype=np.float64)
             values = np.concatenate(self._record_values) if self._record_values else np.array([], dtype=np.float64)
