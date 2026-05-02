@@ -100,18 +100,18 @@ ARGS=(
   --vcpus "$VCPUS"
   --cpu host-passthrough
   --os-variant win10
-  --disk "path=${DISK},format=qcow2,bus=virtio"
+  --disk "path=${DISK},format=qcow2,bus=sata"
   --cdrom "$ISO"
   --network network=default,model=e1000e
-  --host-device 3923:76c4
-  --host-device 067b:23a3
+  --host-device usb_1_9
+  --host-device usb_1_8
   --boot uefi
   --tpm backend.type=emulator,backend.version=2.0,model=tpm-crb
-  --graphics spice
+  --graphics spice,listen=0.0.0.0
 )
 
 if [[ "$DRY_RUN" == "1" ]]; then
   exec virt-install "${ARGS[@]}" --noautoconsole --print-xml
 fi
 
-exec virt-install "${ARGS[@]}"
+exec virt-install "${ARGS[@]}" --noautoconsole

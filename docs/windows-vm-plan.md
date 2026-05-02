@@ -1,7 +1,7 @@
 # Windows VM 方案
 
 > **状态**:已采用  
-> **更新日期**:2026-05-03
+> **更新日期**:2026-05-03（VM 已创建，等待 Windows 安装）
 
 ## 1. 结论
 
@@ -42,30 +42,34 @@ Phase 1 不再走 `distrobox + Ubuntu 24.04 + NI-DAQmx Linux`。新的执行路�
 - `/dev/kvm` 可访问: `PASS`
 - `qemu-desktop`, `libvirt`, `virt-install`, `edk2-ovmf`, `swtpm` 已安装
 - `libvirtd` 已启动并设为开机自启
-- `libvirt default` NAT 网络已启动并设为自启
+- `libvirt default` NAT 网络已启动并设为自启（需用 `sudo virsh`，见注 1）
 - USB 设备已识别:
-  - `3923:76c4` = `NI USB-6002`
-  - `067b:23a3` = `6514` 对应的 USB-Serial
+  - `3923:76c4` (`usb_1_9`) = `NI USB-6002`
+  - `067b:23a3` (`usb_1_8`) = `6514` 对应的 USB-Serial
+- 休眠/挂起全部 mask（`sleep`, `suspend`, `hibernate`, `hybrid-sleep`）
+- **ISO 传输完成**:`/var/lib/libvirt/images/en-us_windows_10_enterprise_ltsc_2021_x64_dvd_d289cf96.iso`
+- **VM 已创建并启动**:`pickup-win10-ltsc`，SPICE on `localhost:5900`
+
+> 注 1：`virsh net-list --all` 不带 sudo 看不到网络（连到 `qemu:///session`），
+> 要用 `sudo virsh net-list --all` 或 `virsh --connect qemu:///system net-list --all`。
 
 ### 仍待做
 
-- 本地下载 Windows ISO
-- `scp` 到宿主机
-- 正式创建并安装 Windows VM
+- **连接 SPICE 控制台，完成 Windows 安装**（见 §9）
 - 在 VM 内装 `NI-DAQmx + Python`
 
-## 4. ISO 获取策略
+## 4. ISO 获取策略（已完成）
 
 以后**大文件一律本地下好再传远端**。
 
-推荐流程:
+已执行流程（2026-05-03）:
 
-1. 在本机从 Microsoft 官方站下载 `Windows 10 Enterprise LTSC 2021 x64` ISO
-2. 传到实验机,例如:
+1. 本机下载：`~/Downloads/en-us_windows_10_enterprise_ltsc_2021_x64_dvd_d289cf96.iso`
+2. rsync 传到宿主机（`rsync --progress -h <iso> lab4070:/home/a203/isos/`）
+3. 再移到 `/var/lib/libvirt/images/`（避免 libvirt-qemu 用户权限问题）
 
-```bash
-scp /local/path/Win10_LTSC_2021_x64.iso a203@10.24.32.98:/home/a203/isos/
-```
+> **注意**：ISO 必须放在 `/var/lib/libvirt/images/` 或 `libvirt-qemu` 可读的目录，
+> 否则 QEMU 进程会报 `Permission denied`。`/home/a203` 对 `libvirt-qemu` 不可见。
 
 3. 在实验机上用该 ISO 创建 VM
 
@@ -133,3 +137,45 @@ print(nidaqmx.system.System.local().devices)
 
 - 若后续要把 WebUI 部署在 Linux 宿主机,可以再评估 guest-host IPC
 - 但最简单的 Phase 2 路线,仍然是**Web 后端直接跑在 Windows VM 里**
+
+## 9. 连接 SPICE 控制台（Windows 安装用）
+
+VM 已在运行，SPICE 显示器绑定在宿主机 `localhost:5900`。
+
+### 方法 A：SSH 隧道 + remote-viewer（推荐，Mac/Linux 通用）
+
+本机执行:
+
+```bash
+ssh -L 5900:localhost:5900 lab4070 -N &
+remote-viewer spice://localhost:5900
+# 或
+open -a "Virt Viewer" spice://localhost:5900
+```
+
+若没有 `remote-viewer`，Mac 上安装：`brew install virt-viewer`
+
+### 方法 B：virt-manager（宿主机 X11 forward）
+
+```bash
+ssh -X lab4070 virt-manager
+```
+
+### VM 管理常用命令
+
+```bash
+# 查 VM 状态
+sudo virsh list --all
+
+# 重启 VM
+sudo virsh reboot pickup-win10-ltsc
+
+# 强关
+sudo virsh destroy pickup-win10-ltsc
+
+# 查 SPICE 端口
+sudo virsh domdisplay pickup-win10-ltsc
+
+# 查 VM 获取的 NAT IP（Windows 装好后）
+sudo virsh domifaddr pickup-win10-ltsc
+```

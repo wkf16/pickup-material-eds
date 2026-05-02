@@ -62,9 +62,10 @@ WebUI 本身就是这个项目最重要的实验工具。**先把工具做出来
 - [x] 确认 USB 设备 ID:
   - `3923:76c4` = USB-6002
   - `067b:23a3` = 6514 USB-Serial
-- [ ] **本地下载** Windows 10 Enterprise LTSC 2021 x64 ISO
-- [ ] `scp` ISO 到 Lab Linux
-- [ ] 创建 Windows VM(UEFI + TPM 2.0 + USB passthrough)
+- [x] **本地下载** Windows 10 Enterprise LTSC 2021 x64 ISO（`~/Downloads/en-us_windows_10_enterprise_ltsc_2021_x64_dvd_d289cf96.iso`）
+- [x] ISO 传到 Lab Linux（`/var/lib/libvirt/images/`，注：需放此目录，见 `windows-vm-plan.md §4`）
+- [x] 创建 Windows VM(UEFI + TPM 2.0 + USB passthrough) → `pickup-win10-ltsc` running，SPICE `localhost:5900`
+- [ ] **通过 SPICE 完成 Windows 安装**（见 `docs/windows-vm-plan.md §9`）
 - [ ] VM 内安装 NI-DAQmx
 - [ ] VM 内安装 Python 3.12 + `nidaqmx` / numpy / scipy / soundfile
 - [ ] 跑最小 enumerate 测试:
@@ -184,13 +185,14 @@ WebUI 本身就是这个项目最重要的实验工具。**先把工具做出来
 
 # Next actions(按优先级排序)
 
-1. **关 Lab Linux 休眠** ── 让 Tailscale 节点稳定在线(`decisions.md` D-05)
-2. **本地下载 Windows 10 LTSC 2021 x64 ISO,再 scp 到宿主机**
-3. **创建 Windows VM**,直通 `USB-6002 + 6514 USB-Serial`
-4. **VM 内装 NI-DAQmx + Python**,跑 enumerate test
-5. **跑 Phase 1.3 四个 smoke test**,记录性能边界
-6. **写 Phase 2 后端骨架**(`instruments/daq.py` + `instruments/electrometer.py` 优先)
-7. **写 Phase 2 WebSocket + uPlot 前端原型**(端到端跑通最重要,UI 后面再美化)
+1. ~~关 Lab Linux 休眠~~ ✅ 已完成（`sleep/suspend/hibernate/hybrid-sleep` 全部 masked，2026-05-03）
+2. ~~ISO 下载 + 传宿主机~~ ✅ 已完成，ISO 在 `/var/lib/libvirt/images/`
+3. ~~创建 Windows VM~~ ✅ 已完成，`pickup-win10-ltsc` running，SPICE `localhost:5900`
+4. **通过 SPICE 连接 VM，完成 Windows 安装**（见 `docs/windows-vm-plan.md §9`）
+5. **VM 内装 NI-DAQmx + Python**,跑 enumerate test
+6. **跑 Phase 1.3 四个 smoke test**,记录性能边界
+7. **写 Phase 2 后端骨架**(`instruments/daq.py` + `instruments/electrometer.py` 优先)
+8. **写 Phase 2 WebSocket + uPlot 前端原型**(端到端跑通最重要,UI 后面再美化)
 
 ---
 
