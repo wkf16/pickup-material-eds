@@ -10,11 +10,16 @@ import numpy as np
 from pickup_eds.config import Settings
 from pickup_eds.core.ring_buffer import RingBuffer, decimate_pair
 from pickup_eds.core.storage import StorageManager
+from pickup_eds.instruments.electrometer_serial import Real6514Serial
 from pickup_eds.schemas import AppState, ControlState, DaqState, DatasetSummary, RecordingState, ScpiLogEntry
 
 
 class SimulatedBenchService:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        real_scpi: Real6514Serial | None = None,
+    ) -> None:
         self._settings = settings
         self._storage = StorageManager(settings.data_dir)
         self._buffer = RingBuffer(settings.sample_rate_hz * settings.buffer_seconds)
@@ -26,7 +31,13 @@ class SimulatedBenchService:
         )
         self._recording = RecordingState(active=False)
         self._datasets: list[DatasetSummary] = []
-        self._scpi_port = "COM3 (simulated)"
+        # Optional bridge to the physical instrument. When set, only the
+        # SCPI console is routed to it — waveform/recording remain
+        # simulated. See electrometer_serial.py for the rationale.
+        self._real_scpi = real_scpi
+        self._scpi_port = (
+            f"{real_scpi.port} (real)" if real_scpi else "COM3 (simulated)"
+        )
         self._scpi_log: list[ScpiLogEntry] = [
             ScpiLogEntry(
                 at=datetime.now(UTC),
@@ -199,7 +210,23 @@ class SimulatedBenchService:
 
     async def send_scpi(self, command: str) -> ScpiLogEntry:
         normalized = command.strip()
-        response, updates = self._simulate_scpi(normalized)
+        # If a real serial bridge is wired up, route the command to the
+        # physical 6514. The simulated state model is intentionally NOT
+        # mutated from real responses — that requires the full real
+        # BenchService (planned, see docs/dev-real-hardware.md). For now
+        # the SCPI console is a pure pass-through; control toggles in
+        # the UI still drive the simulator's control state.
+        if self._real_scpi and self._real_scpi.is_open():
+            try:
+                response = await self._real_scpi.send(normalized)
+                ok = bool(response) and not response.upper().startswith("ERR")
+            except Exception as exc:  # serial drop / timeout / etc.
+                response = f"ERR: serial: {exc}"
+                ok = False
+            updates: dict[str, object] = {}
+        else:
+            response, updates = self._simulate_scpi(normalized)
+            ok = not response.startswith("ERR:")
         async with self._lock:
             if updates:
                 self._control = self._control.model_copy(update=updates)
@@ -208,7 +235,7 @@ class SimulatedBenchService:
                 port=self._scpi_port,
                 command=normalized,
                 response=response,
-                ok=not response.startswith("ERR:"),
+                ok=ok,
             )
             self._scpi_log = [entry, *self._scpi_log][:20]
         await self._broadcast_state()
