@@ -1,0 +1,135 @@
+# Windows VM 方案
+
+> **状态**:已采用  
+> **更新日期**:2026-05-03
+
+## 1. 结论
+
+Phase 1 不再走 `distrobox + Ubuntu 24.04 + NI-DAQmx Linux`。新的执行路径是:
+
+- `Manjaro` 只当 **KVM/libvirt 宿主机**
+- `Windows VM` 负责 **USB-6002 + 6514 USB-Serial** 的驱动和应用
+- `capture_freqresp.py`、后续 `FastAPI` 后端都运行在 Windows VM 里
+
+这条路线是为了避开 USB-6002 在 Linux 上的实际支持/驱动风险。决策依据见 `docs/decisions.md` 的 `D-12`。
+
+## 2. 选哪个 Windows
+
+### 选择
+
+**Windows 10 Enterprise LTSC 2021 x64**
+
+### 为什么是它
+
+- `NI-DAQmx` 官方主支持面向 Windows,而不是 USB DAQ on Linux
+- 比 Windows 11 更轻,对实验机更克制
+- LTSC 本身就是为**少变更、长期运行、专用设备**场景准备的
+
+### 说明
+
+“**最轻且支持**”这里是一个**工程判断**:
+
+- “支持”来自 NI 官方 `NI-DAQmx and Microsoft Windows Compatibility`
+- “更轻”来自 Microsoft 对 LTSC 的定位:长期服务、面向专用设备、少 feature churn
+
+如果后续发现某个 `NI-DAQmx` 版本对 LTSC 有专门限制,则降级到 **Windows 10 22H2 x64 Pro/Enterprise**。
+
+## 3. 宿主机当前状态(2026-05-03 实测)
+
+### 已完成
+
+- `KVM` 硬件虚拟化: `PASS`
+- `/dev/kvm` 可访问: `PASS`
+- `qemu-desktop`, `libvirt`, `virt-install`, `edk2-ovmf`, `swtpm` 已安装
+- `libvirtd` 已启动并设为开机自启
+- `libvirt default` NAT 网络已启动并设为自启
+- USB 设备已识别:
+  - `3923:76c4` = `NI USB-6002`
+  - `067b:23a3` = `6514` 对应的 USB-Serial
+
+### 仍待做
+
+- 本地下载 Windows ISO
+- `scp` 到宿主机
+- 正式创建并安装 Windows VM
+- 在 VM 内装 `NI-DAQmx + Python`
+
+## 4. ISO 获取策略
+
+以后**大文件一律本地下好再传远端**。
+
+推荐流程:
+
+1. 在本机从 Microsoft 官方站下载 `Windows 10 Enterprise LTSC 2021 x64` ISO
+2. 传到实验机,例如:
+
+```bash
+scp /local/path/Win10_LTSC_2021_x64.iso a203@10.24.32.98:/home/a203/isos/
+```
+
+3. 在实验机上用该 ISO 创建 VM
+
+## 5. VM 创建参数
+
+### 推荐规格
+
+- vCPU: `4`
+- RAM: `8 GiB`
+- Disk: `80 GiB qcow2`
+- Firmware: `UEFI`
+- TPM: `2.0`
+- Network: libvirt `default`
+- USB passthrough:
+  - `3923:76c4` (`USB-6002`)
+  - `067b:23a3` (`6514 USB-Serial`)
+
+### 辅助脚本
+
+仓库内提供:
+
+```bash
+scripts/create_windows_vm.sh
+```
+
+示例:
+
+```bash
+bash scripts/create_windows_vm.sh \
+  --name pickup-win10-ltsc \
+  --iso /home/a203/isos/Win10_LTSC_2021_x64.iso
+```
+
+## 6. VM 内安装目标
+
+Windows VM 起来后,按这个顺序做:
+
+1. 安装 `NI-DAQmx`
+2. 在 NI MAX 或 Python 里确认 `USB-6002` 被枚举
+3. 安装 Python 3.12
+4. 安装依赖:
+
+```powershell
+py -m pip install pyserial nidaqmx numpy scipy soundfile matplotlib
+```
+
+5. 运行最小枚举:
+
+```python
+import nidaqmx
+print(nidaqmx.system.System.local().devices)
+```
+
+6. 再运行 `scripts/capture_freqresp.py`
+
+## 7. Phase 1 验收标准
+
+- `6514` 在 Windows VM 内 `*IDN?` 正常
+- `USB-6002` 在 `nidaqmx.system.System.local().devices` 里出现
+- 1 秒 `50 kS/s` 单通道采集成功
+- 60 秒连续流采无 overrun
+- `6514 2V AO -> USB-6002` 的端到端链路跑通
+
+## 8. 备注
+
+- 若后续要把 WebUI 部署在 Linux 宿主机,可以再评估 guest-host IPC
+- 但最简单的 Phase 2 路线,仍然是**Web 后端直接跑在 Windows VM 里**

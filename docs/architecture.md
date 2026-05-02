@@ -1,10 +1,10 @@
 # 系统架构
 
-> 这份文档描述目标产品(Web 实验台)的整体架构,以及它在已有硬件(Keithley 6514 + NI USB-6002 + Manjaro Lab Linux)之上如何组织。**当前状态:设计阶段,代码尚未写**——见 `roadmap.md` 的 Phase 2。
+> 这份文档描述目标产品(Web 实验台)的整体架构,以及它在已有硬件(Keithley 6514 + NI USB-6002 + Manjaro Lab Linux)之上如何组织。**当前状态:设计阶段,代码尚未写**——见 `roadmap.md` 的 Phase 2。自 2026-05-03 起,DAQ 与串口驱动层迁移为 **Windows VM 方案**。
 
 ## 1. 一句话定位
 
-一个**运行在 Lab Linux 上的内网 Web 应用**,把 `Keithley 6514 + NI USB-6002` 这套硬件包成"网页示波器 + 仪器虚拟前面板 + 实验数据管理器",支持远程实时监测、控制 6514、录制带类别标签的数据集、嵌入终端调试。
+一个**运行在 Windows VM 上、由 Lab Linux 承载的内网 Web 应用**,把 `Keithley 6514 + NI USB-6002` 这套硬件包成"网页示波器 + 仪器虚拟前面板 + 实验数据管理器",支持远程实时监测、控制 6514、录制带类别标签的数据集、嵌入终端调试。
 
 ## 2. 顶层数据流
 
@@ -19,7 +19,7 @@
                   │ 降采样后波形          │
                   ▼                       ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Lab Linux 后端 — FastAPI + uvicorn(单进程,asyncio)        │
+│  Windows VM 后端 — FastAPI + uvicorn(单进程,asyncio)       │
 │                                                             │
 │  ┌──────────────┐   ┌──────────────┐   ┌────────────────┐  │
 │  │ DAQ Worker   │   │ 6514 Worker  │   │ Storage Mgr    │  │
@@ -30,6 +30,13 @@
 │         └───────────┬───────┘                               │
 │                     ▼                                       │
 │             公共状态总线(asyncio Event/Queue)               │
+└─────────────────────────────────────────────────────────────┘
+                  ▲
+                  │ KVM / libvirt / USB passthrough
+                  ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Lab Linux 宿主机(Manjaro)                                  │
+│  负责 Tailscale / SSH / libvirt / 磁盘文件 / 可选反代        │
 └─────────────────────────────────────────────────────────────┘
                   │                       │
                   ▼ USB                   ▼ RS-232 (USB-Serial)
@@ -91,6 +98,11 @@ src/pickup_eds/
 - 多个 web 请求并发 → 必须串行化
 - 单进程 uvicorn 不开 worker pool,避免句柄竞争
 
+#### 原则 3.5:**把 NI 驱动问题隔离在 Windows guest**
+- 宿主机保留 Manjaro,不为了 DAQ 驱动重装系统
+- guest 拿走 `USB-6002 + USB-Serial` 直通
+- Web 应用和驱动层放在同一 guest 内,先保证链路简单
+
 #### 原则 4:**先做 LAN-only,鉴权简化**
 - Tailscale 网络已经是事实上的认证层
 - HTTP Basic Auth 加一层(< 10 行代码)
@@ -150,12 +162,17 @@ src/pickup_eds/
 ```
 ┌────────────────────────── Lab Linux (Manjaro) ──────────────────────────┐
 │                                                                        │
-│  systemd user services:                                                │
-│    ─ pickup-eds.service     :8000  (FastAPI app)                       │
-│    ─ ttyd.service           :7681  (Web 终端)                          │
+│  systemd services:                                                     │
+│    ─ libvirtd.service       (KVM/libvirt)                              │
+│    ─ 可选: ttyd.service     :7681  (宿主机终端)                        │
 │                                                                        │
-│  bind: 0.0.0.0(LAN 可达) 或 100.x(仅 Tailscale)                     │
-│  HTTP Basic Auth(单一管理员账号)                                       │
+│  Windows 10 LTSC VM:                                                   │
+│    ─ pickup-eds backend     :8000                                      │
+│    ─ USB passthrough: USB-6002 + 6514 USB-Serial                       │
+│                                                                        │
+│  访问方式:                                                              │
+│    ─ 直接访问 guest IP                                                 │
+│    ─ 或后续由宿主机反代/转发                                           │
 │                                                                        │
 └────────────────────────────────────────────────────────────────────────┘
 ```

@@ -8,7 +8,7 @@
 | 文件 | 在哪跑 | 用途 |
 |---|---|---|
 | `gen_chirp.py` | Mac(本机) | 生成扫频 wav 用作激励信号 |
-| `capture_freqresp.py` | Lab Linux | 配置 6514 + USB-6002 同步采集 |
+| `capture_freqresp.py` | Windows VM | 配置 6514 + USB-6002 同步采集 |
 | `analyze_bode.py` | 任意 | 时域/频谱/1/3 倍频程能量 + 可选 Bode |
 
 ## 快速用法
@@ -21,11 +21,10 @@ python scripts/gen_chirp.py
 afplay chirp_50_20k_10s.wav   # 实验时播
 ```
 
-### 在 Lab Linux 上(采集)
+### 在 Windows VM 上(采集)
 ```bash
-# 一次性装依赖(系统 Python 即可)
-sudo pacman -S python-pyserial python-numpy python-scipy
-pip install --user nidaqmx soundfile
+# 一次性装依赖
+py -m pip install pyserial nidaqmx numpy scipy soundfile
 
 # 跑采集
 mkdir -p data/exp01
@@ -36,7 +35,7 @@ python scripts/capture_freqresp.py \
 # 看到 ">>> Start the stimulus NOW <<<" 时,在 Mac 上 afplay
 ```
 
-### 分析(本机或 Lab 都行)
+### 分析(本机、Windows VM 或宿主机都行)
 ```bash
 python scripts/analyze_bode.py data/exp01/02_speaker_chirp.npy --plot
 # 加 --ref 同时给参考麦录音,得到 Bode 曲线

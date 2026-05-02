@@ -78,7 +78,7 @@
 ## D-04:NI-DAQmx 部署方式选 distrobox 容器不选直接装/双系统
 
 **时间**:2026-05-02
-**状态**:已采纳,待实施
+**状态**:已撤回,被 D-12 取代
 
 **背景**:NI 官方不支持 Manjaro/Arch,只支持 Ubuntu LTS / RHEL / SUSE。
 
@@ -95,6 +95,11 @@
 - 主机 Manjaro 不被污染,卸载等于 `distrobox rm`
 
 **代价**:每次开新 shell 要 `distrobox enter`,可写脚本固化。
+
+**撤回原因(2026-05-03)**:
+- 实测 `NI Linux Device Drivers 2026Q2` 在 Ubuntu 24.04 仓库里虽然有 `ni-daqmx`,但它会继续拉一整套 **DKMS + Ubuntu 6.8 generic headers**
+- 当前宿主机是 `Manjaro 6.18.18-1-MANJARO`,容器内 DKMS 不能替代宿主机真实内核驱动
+- 对 `USB-6002` 这类 USB MIO 设备,Windows 路线明显更稳
 
 ---
 
@@ -235,9 +240,45 @@
 
 ---
 
+## D-12:DAQ 驱动改走 Windows VM,不再走 Ubuntu 容器
+
+**时间**:2026-05-03
+**状态**:已采纳,supersedes D-04
+
+**背景**:对 `USB-6002` 的第一轮远程落地里,已经确认:
+
+- `6514` 串口链路正常,`*IDN?` 和 `FUNC?` 都能通
+- `NI Linux Device Drivers 2026Q2` 官方仓库在 Ubuntu 24.04 容器内可装
+- 但 `ni-daqmx` 实际会拉一大批 **与 Ubuntu generic kernel 绑定的 DKMS 模块**
+- 宿主机是真正负责 USB 枚举和内核驱动的 `Manjaro 6.18`,不是容器里的 `Ubuntu 6.8`
+
+这意味着“容器里 apt 装上了”不等于“宿主机上的 USB-6002 真能稳定工作”。
+
+**备选**:
+- A. 继续硬顶 `Ubuntu 24.04 container + NI Linux drivers`
+- B. 宿主机改装原生 Ubuntu
+- C. **Manjaro 做 KVM 宿主机 + Windows VM 跑 NI-DAQmx** ← 选择
+
+**理由**:
+- Windows 是 `USB-6002 + NI-DAQmx` 的主支持平台
+- 虚拟机把 `Windows/NI` 的复杂度和 `Linux/开发环境` 隔离开
+- 保留当前 Manjaro 桌面、Tailscale、SSH、文件环境,不必重装宿主机
+- `USB-6002` 和 `6514 USB-Serial` 都可以通过 libvirt 直通给 guest
+
+**选择的 guest OS**:
+- **Windows 10 Enterprise LTSC 2021 x64**
+
+这是一个**工程判断**:
+- “支持”来自 NI 的 Windows 兼容矩阵
+- “更轻”来自 Microsoft 对 LTSC 的专用设备定位
+
+若后续发现某个 `NI-DAQmx` 版本对 LTSC 有额外限制,退回 `Windows 10 22H2 x64`。
+
+---
+
 # 推翻日志(decisions reversed)
 
-(暂无)
+- `D-04` ── 被 `D-12` 取代
 
 ---
 

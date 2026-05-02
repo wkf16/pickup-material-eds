@@ -1,6 +1,7 @@
 """Capture USB-6002 AI0 with Keithley 6514 configured as front-end.
 
-Runs on the lab Linux box. Configures the 6514 over RS-232 (default
+Runs on the lab Windows VM (or any Windows host with NI-DAQmx installed).
+Configures the 6514 over RS-232 (default
 /dev/ttyUSB0, 9600 8N1, XonXoff, CR terminator), then starts a continuous
 50 kS/s capture on the USB-6002 differential AI0. Saves an .npy dict.
 
@@ -8,7 +9,7 @@ Usage:
     python scripts/capture_freqresp.py --duration 12 --out data/exp01/02_speaker_chirp.npy
     # then on Mac: afplay chirp_50_20k_10s.wav  # within ~2 s
 
-Dependencies (Lab Linux): pyserial, nidaqmx, numpy
+Dependencies: pyserial, nidaqmx, numpy
 """
 
 from __future__ import annotations

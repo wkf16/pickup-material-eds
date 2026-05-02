@@ -1,7 +1,7 @@
 # pickup-material-eds
 
 Web-based 控制 + 数据采集系统,用于表征 SLTS 类 TENG/压电"拾音"材料。
-最终部署在实验室 Linux 工作站上,通过内网访问。
+最终部署为**实验室 Linux 宿主机 + Windows VM 采集来宾机**的形态,通过内网访问。
 
 ## 硬件
 
@@ -9,7 +9,7 @@ Web-based 控制 + 数据采集系统,用于表征 SLTS 类 TENG/压电"拾音"�
 |---|---|---|
 | 静电计 | Keithley 6514 | RS-232,9600/8N1/CR/XonXoff,S/N 4691930 |
 | DAQ | NI USB-6002 | 16-bit, 50 kS/s, ±10V |
-| 实验主机 | Dell Precision 3660 / Manjaro Linux | i7-13700K, 125 GiB RAM, RTX 4070, IP 10.24.32.98 |
+| 实验主机 | Dell Precision 3660 / Manjaro Linux | KVM 宿主机,i7-13700K,125 GiB RAM,RTX 4070,IP 10.24.32.98 |
 
 数据流:
 
@@ -22,7 +22,7 @@ Web-based 控制 + 数据采集系统,用于表征 SLTS 类 TENG/压电"拾音"�
 ## 项目状态
 
 - **Phase 0** ── 项目骨架 ✅
-- **Phase 1**(进行中) ── NI-DAQmx 驱动 + 端到端链路验证
+- **Phase 1**(进行中) ── Windows VM 中的 NI-DAQmx 驱动 + 端到端链路验证
 - **Phase 2** ── WebUI MVP(实时显示 + 6514 控制 + 录制)
 - **Phase 3** ── 用 WebUI 跑实验 01 + 录 ML 数据集
 - **Phase 4** ── ML 训练 + 推理集成回 WebUI
@@ -38,6 +38,7 @@ Web-based 控制 + 数据采集系统,用于表征 SLTS 类 TENG/压电"拾音"�
 | **现在该做什么、整体进度** | [`docs/roadmap.md`](docs/roadmap.md) |
 | **目标系统怎么设计的、模块怎么分** | [`docs/architecture.md`](docs/architecture.md) |
 | **为什么选 X 不选 Y(技术选型理由)** | [`docs/decisions.md`](docs/decisions.md) |
+| **Windows VM 方案怎么建、ISO 怎么传、USB 怎么直通** | [`docs/windows-vm-plan.md`](docs/windows-vm-plan.md) |
 | **下一个实验怎么做(测 TENG 材料带宽)** | [`docs/exp-01-bandwidth-test.md`](docs/exp-01-bandwidth-test.md) |
 | **现有脚本怎么用** | [`scripts/README.md`](scripts/README.md) |
 
@@ -59,6 +60,11 @@ ssh a203@10.24.32.98     # 当前直连;后续会切到 Tailscale
 cd <项目同步目录>
 python scripts/capture_freqresp.py --help
 ```
+
+当前 Phase 1 方案见 [`docs/windows-vm-plan.md`](docs/windows-vm-plan.md):
+- Manjaro 只负责 KVM/libvirt
+- USB-6002 和 6514 USB-Serial 直通到 Windows VM
+- `capture_freqresp.py` 在 Windows VM 里跑
 
 ## 参考
 

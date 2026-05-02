@@ -25,7 +25,7 @@ WebUI 本身就是这个项目最重要的实验工具。**先把工具做出来
 | Phase | 目标 | 状态 | 阻塞点 |
 |---|---|---|---|
 | **Phase 0** | 项目骨架 + 文档基础 | ✅ 完成 | — |
-| **Phase 1** | NI-DAQmx 驱动 + 端到端链路验证 | 🟡 进行中 | distrobox 容器待装 |
+| **Phase 1** | Windows VM 中的 NI-DAQmx 驱动 + 端到端链路验证 | 🟡 进行中 | Windows ISO 待本地下载并传宿主机 |
 | **Phase 2** | WebUI MVP(实时显示 + 6514 控制 + 录制) | ⚪ 未启动 | Phase 1 |
 | **Phase 3** | 用 WebUI 跑实验 01 + ML 数据集采集 | ⚪ 未启动 | Phase 2 |
 | **Phase 4** | ML 训练 + 推理集成回 WebUI | ⚪ 未启动 | Phase 3 |
@@ -48,18 +48,25 @@ WebUI 本身就是这个项目最重要的实验工具。**先把工具做出来
 
 ## Phase 1:驱动 + 端到端链路验证 🟡
 
-**目标**:Lab Linux 上 NI-DAQmx 装好,Python 能读 USB-6002 数据,6514 能 SCPI 通信,**两路数据从硬件流到 Python 都验证一次**。这一阶段不写 WebUI,只确保"裸的仪器层 ready"。
+**目标**:Lab Linux 作为 **KVM 宿主机**,Windows VM 作为 **DAQ/串口来宾机**。在 Windows VM 里装好 NI-DAQmx,让 Python 能读 USB-6002 数据,6514 能 SCPI 通信,**两路数据从硬件流到 Python 都验证一次**。这一阶段不写 WebUI,只确保"裸的仪器层 ready"。
 
 ### 1.1 网络
 - [x] 装 Tailscale(用户已自行完成,见 [`memory/lab_machine.md`](../../.claude/projects/-Users-okonfu/memory/lab_machine.md))
 - [x] `ssh a203@203-precision3660` 工作(off-campus 也能连)
 - [ ] **关闭休眠**(让 Lab 节点 24/7 在 Tailscale 在线;`decisions.md` D-05)
 
-### 1.2 DAQ 侧:NI-DAQmx 安装
-- [ ] 在 Lab Linux 上装 distrobox + Ubuntu 24.04 容器(`decisions.md` D-04)
-- [ ] 容器内装 NI-DAQmx Linux runtime
-- [ ] 容器内装 `nidaqmx` Python 包 + numpy / scipy / soundfile
-- [ ] 容器内 USB passthrough 验证(`lsusb` 看到 NI / `nilsdev` 列出设备)
+### 1.2 DAQ 侧:Windows VM + NI-DAQmx
+- [x] 在 Lab Linux 上装 `qemu/libvirt/virt-install/OVMF/swtpm`
+- [x] 宿主机 KVM 自检通过(`virt-host-validate qemu`)
+- [x] libvirt 默认 NAT 网络启动并设为自启
+- [x] 确认 USB 设备 ID:
+  - `3923:76c4` = USB-6002
+  - `067b:23a3` = 6514 USB-Serial
+- [ ] **本地下载** Windows 10 Enterprise LTSC 2021 x64 ISO
+- [ ] `scp` ISO 到 Lab Linux
+- [ ] 创建 Windows VM(UEFI + TPM 2.0 + USB passthrough)
+- [ ] VM 内安装 NI-DAQmx
+- [ ] VM 内安装 Python 3.12 + `nidaqmx` / numpy / scipy / soundfile
 - [ ] 跑最小 enumerate 测试:
   ```python
   import nidaqmx
@@ -77,12 +84,12 @@ WebUI 本身就是这个项目最重要的实验工具。**先把工具做出来
 ### 1.4 6514 侧:验证已通的链路依然通
 - [x] RS-232 物理接线(已验证,IDN 拿到 S/N 4691930)
 - [x] 用 `scripts/capture_freqresp.py` 配置 + 一次有限采集(在 Mac 端验证过命令)
-- [ ] 在 Lab Linux 上重跑同样脚本(确认 ttyUSB0 + nidaqmx 配合)
-- [ ] 对照表:V/I/R/Q 四个模式各发 SCPI 切换 + 验证 `FUNC?` 回读
+- [ ] 在 Windows VM 上重跑同样脚本(确认 6514 串口 + nidaqmx 配合)
+- [x] 对照表:V/I/R/Q 四个模式各发 SCPI 切换 + 验证 `FUNC?` 回读
 
 ### 1.5 端到端验证
 - [ ] 接一个简单信号源(电池 + 分压器,~100 mV DC)到 6514 输入
-- [ ] 6514 V 模式 2V 量程 → 2V AO → USB-6002 → Python
+- [ ] 6514 V 模式 2V 量程 → 2V AO → USB-6002 → Windows VM Python
 - [ ] 看到稳定 100 mV ± 噪声,符合预期
 - [ ] **如果到这一步通过了:Phase 1 完成**
 
@@ -178,12 +185,12 @@ WebUI 本身就是这个项目最重要的实验工具。**先把工具做出来
 # Next actions(按优先级排序)
 
 1. **关 Lab Linux 休眠** ── 让 Tailscale 节点稳定在线(`decisions.md` D-05)
-2. **装 distrobox + Ubuntu 24.04 容器**
-3. **容器内装 NI-DAQmx + nidaqmx Python**
-4. **跑 Phase 1.3 四个 smoke test**,记录性能边界
-5. **写 Phase 2 后端骨架**(`instruments/daq.py` + `instruments/electrometer.py` 优先)
-6. **写 Phase 2 WebSocket + uPlot 前端原型**(端到端跑通最重要,UI 后面再美化)
-7. **Phase 3:用 WebUI 跑实验 01,凑物料并执行**
+2. **本地下载 Windows 10 LTSC 2021 x64 ISO,再 scp 到宿主机**
+3. **创建 Windows VM**,直通 `USB-6002 + 6514 USB-Serial`
+4. **VM 内装 NI-DAQmx + Python**,跑 enumerate test
+5. **跑 Phase 1.3 四个 smoke test**,记录性能边界
+6. **写 Phase 2 后端骨架**(`instruments/daq.py` + `instruments/electrometer.py` 优先)
+7. **写 Phase 2 WebSocket + uPlot 前端原型**(端到端跑通最重要,UI 后面再美化)
 
 ---
 
