@@ -16,7 +16,7 @@
 
 ---
 
-## Phase 0:项目骨架 ✅(已完成 2026-05-02)
+## Phase 0:项目骨架 ✅(已完成 2026-05-03)
 
 - [x] 创建 `~/projects/pickup-material-eds/` 目录结构
 - [x] `README.md` 项目概述
@@ -26,7 +26,7 @@
 - [x] `docs/decisions.md` 关键决策记录
 - [x] `docs/exp-01-bandwidth-test.md` 实验 01 完整方案
 - [x] `scripts/{gen_chirp,capture_freqresp,analyze_bode}.py` 单文件工具
-- [ ] `git init` + 首次 commit ← **待办**
+- [x] `git init` + 首次 commit(2026-05-03)
 
 ## Phase 1:实验 01 — 测 SLTS 材料带宽 🟡
 
