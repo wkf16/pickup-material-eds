@@ -219,7 +219,19 @@ class SimulatedBenchService:
         if self._real_scpi and self._real_scpi.is_open():
             try:
                 response = await self._real_scpi.send(normalized)
-                ok = bool(response) and not response.upper().startswith("ERR")
+                # SCPI distinction we have to honor on the real path:
+                # - Queries (contain "?") MUST return data → empty is failure.
+                # - Set commands (no "?") return NOTHING by spec → empty is success.
+                # The simulator path returns "OK" for sets, but real Keithley
+                # 6514 stays silent. See docs/dev-real-hardware.md §5 for the
+                # full command compatibility matrix.
+                is_query = "?" in normalized
+                if response.upper().startswith("ERR"):
+                    ok = False
+                elif is_query:
+                    ok = bool(response)
+                else:
+                    ok = True  # set command, no echo expected
             except Exception as exc:  # serial drop / timeout / etc.
                 response = f"ERR: serial: {exc}"
                 ok = False

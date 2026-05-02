@@ -95,7 +95,62 @@ sudo udevadm trigger
 
 ---
 
-## 5. 故障排查
+## 5. 真机 SCPI 命令兼容性（重要）
+
+模拟器对每条命令都返回 `OK` 之类的伪 echo，**真机不是这样**。不弄清差异会出现"前端按钮按下去都飘红"的假象。
+
+### 5.1 命令分类
+
+SCPI 命令分两类：
+
+| 类型 | 末尾有 `?` | 真机响应 | 失败标志（我们的 UI） |
+|------|----------|----------|----------------------|
+| **Query** | 是 | ASCII 数据 + `\r` | 空响应 = 失败 |
+| **Set** | 否 | **无任何响应**（沉默确认） | 空响应 = **成功**（不要标红） |
+
+代码里 `simulator.py:send_scpi` 已经按这个规则处理（`is_query = "?" in normalized`）。前端不用动。
+
+### 5.2 6514 SCPI 命令树陷阱
+
+6514 的命令树**不维护当前节点上下文**——每条命令必须自带完整 root。常见踩坑：
+
+| 想做的事 | ❌ 不行 | ✅ 正确 |
+|---------|--------|--------|
+| 查当前量程 | `RANG?`（空响应） | `VOLT:RANG?` / `CURR:RANG?` …按当前 FUNC 用 |
+| 查当前功能 | — | `FUNC?`（这条 OK） |
+| 拉一个读数 | `READ?` 在 Zero Check ON 时返回空 | 先 `SYST:ZCH OFF` 再 `READ?` |
+
+WebUI 的快速按钮 `VOLT:RANG?` 默认按 VOLT 给。如果你切到 CURR 模式想查量程，得手输 `CURR:RANG?`。下一版完整后端会基于当前 FUNC 自动改写 `RANG?` → `<FUNC>:RANG?`。
+
+### 5.3 实测响应（参考）
+
+刚验证过的真机响应样本（serial=4691930，固件 A13/B01 2011-08-30）：
+
+```
+*IDN?         → KEITHLEY INSTRUMENTS INC.,MODEL 6514,4691930,A13   Aug 30 2011 15:09:19/B01  /H
+FUNC?         → "VOLT:DC"
+VOLT:RANG?    → 2.10
+SYST:ZCH?     → 1   (ON) / 0 (OFF)
+SYST:ZCH ON   → (空，正常)
+SYST:ZCH OFF  → (空，正常)
+READ?         → -7.334216E-06,+1.252302E+04,+0.000000E+00
+              # 三段: <reading>,<timestamp>,<status_word>
+              # 必须 Zero Check OFF 才有数据
+```
+
+### 5.4 推荐的"开机标准流程"
+
+UI 上 SCPI 控制台按这个顺序点一遍可以验全链路：
+
+1. `*IDN?` — 拿到固件标识，确认通信
+2. `SYST:ZCH OFF` — 退出 Zero Check（READ? 才有数据）
+3. `FUNC?` — 看当前功能
+4. `VOLT:RANG?` — 看当前量程
+5. `READ?` — 拉一笔读数
+
+---
+
+## 6. 故障排查
 
 ### 5.1 `/dev/ttyUSB0` 不存在
 
@@ -141,7 +196,7 @@ KEITHLEY INSTRUMENTS INC.,MODEL 6514,4691930,A13   Aug 30 2011 15:09:19/B01  /H
 
 ---
 
-## 6. 下一步：完整真机 BenchService
+## 7. 下一步：完整真机 BenchService
 
 当前临时桥只覆盖 SCPI 控制台。完整真机后端需要:
 
@@ -165,7 +220,7 @@ KEITHLEY INSTRUMENTS INC.,MODEL 6514,4691930,A13   Aug 30 2011 15:09:19/B01  /H
 
 ---
 
-## 7. 已知限制
+## 8. 已知限制
 
 - **没有命令缓存**：每次 SCPI 都直接打到真机，并发请求会被 `asyncio.Lock` 串行化。如果前端短时间狂点按钮，会感觉到延迟。
 - **没有重连**：如果 6514 中途断开，串口对象不会自动重开。需要重启服务或用 `_maybe_open_real_scpi` 的逻辑做后台重连任务。
