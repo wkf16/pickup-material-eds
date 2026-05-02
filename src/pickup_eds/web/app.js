@@ -3,6 +3,7 @@ const state = {
   datasets: [],
   liveFrame: { time_s: [], value: [] },
   autoPreviewedId: null,
+  scpiLog: [],
 };
 
 const el = {
@@ -21,6 +22,10 @@ const el = {
   datasetCount: document.getElementById("datasetCount"),
   datasetList: document.getElementById("datasetList"),
   previewLabel: document.getElementById("previewLabel"),
+  scpiPortText: document.getElementById("scpiPortText"),
+  scpiCommandInput: document.getElementById("scpiCommandInput"),
+  sendScpiBtn: document.getElementById("sendScpiBtn"),
+  scpiLog: document.getElementById("scpiLog"),
   toast: document.getElementById("toast"),
   startRecordingBtn: document.getElementById("startRecordingBtn"),
   stopRecordingBtn: document.getElementById("stopRecordingBtn"),
@@ -66,6 +71,15 @@ function formatNumber(value, digits = 4) {
   return Number(value).toFixed(digits);
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function setActiveButtons(containerId, activeValue, key) {
   const buttons = document.querySelectorAll(`#${containerId} button`);
   buttons.forEach((button) => {
@@ -81,6 +95,7 @@ function renderState(appState) {
   el.rmsStat.textContent = formatNumber(appState.daq.live_rms);
   el.peakStat.textContent = formatNumber(appState.daq.live_peak);
   el.windowStat.textContent = `${formatNumber(appState.daq.display_window_s, 1)} s`;
+  el.scpiPortText.textContent = appState.scpi_port || "COM?-";
   el.recordingStateText.textContent = appState.recording.active
     ? `recording: ${appState.recording.label}`
     : "idle";
@@ -90,6 +105,7 @@ function renderState(appState) {
   el.zeroCorrectToggle.checked = appState.control.zero_correct;
   setActiveButtons("functionButtons", appState.control.function, "func");
   setActiveButtons("rangeButtons", appState.control.range, "range");
+  renderScpiLog(appState.scpi_log || []);
   renderDatasets(appState.datasets || []);
   if (
     appState.recording.last_dataset_id &&
@@ -98,6 +114,30 @@ function renderState(appState) {
     state.autoPreviewedId = appState.recording.last_dataset_id;
     previewDataset(appState.recording.last_dataset_id);
   }
+}
+
+function renderScpiLog(items) {
+  state.scpiLog = items;
+  if (!items.length) {
+    el.scpiLog.innerHTML = `<p class="empty">还没有命令记录。</p>`;
+    return;
+  }
+  el.scpiLog.innerHTML = items
+    .map(
+      (item) => `
+        <article class="scpi-row ${item.ok ? "ok" : "error"}">
+          <div class="scpi-line">
+            <span class="scpi-tag">${escapeHtml(item.port)}</span>
+            <code>${escapeHtml(item.command)}</code>
+          </div>
+          <div class="scpi-line">
+            <span class="scpi-arrow">←</span>
+            <code>${escapeHtml(item.response)}</code>
+          </div>
+        </article>
+      `
+    )
+    .join("");
 }
 
 function renderDatasets(items) {
@@ -112,16 +152,16 @@ function renderDatasets(items) {
       (item) => `
         <article class="dataset-row">
           <div>
-            <strong>${item.label}</strong>
-            <span>${new Date(item.created_at).toLocaleString()}</span>
+            <strong>${escapeHtml(item.label)}</strong>
+            <span>${escapeHtml(new Date(item.created_at).toLocaleString())}</span>
           </div>
           <div>
             <span>${item.sample_count} samples</span>
             <span>${formatNumber(item.duration_s, 2)} s</span>
           </div>
           <div class="dataset-actions">
-            <button data-preview="${item.id}">预览</button>
-            <a href="/api/data/${item.id}/download">下载</a>
+            <button data-preview="${escapeHtml(item.id)}">预览</button>
+            <a href="/api/data/${encodeURIComponent(item.id)}/download">下载</a>
           </div>
         </article>
       `
@@ -315,6 +355,35 @@ function bindControls() {
       showToast(`停止失败: ${error.message}`, "error");
     }
   });
+
+  document.querySelectorAll("[data-scpi]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      el.scpiCommandInput.value = button.dataset.scpi;
+      await sendScpiCommand();
+    });
+  });
+
+  el.sendScpiBtn.addEventListener("click", sendScpiCommand);
+  el.scpiCommandInput.addEventListener("keydown", async (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      await sendScpiCommand();
+    }
+  });
+}
+
+async function sendScpiCommand() {
+  const command = el.scpiCommandInput.value.trim();
+  if (!command) {
+    return;
+  }
+  try {
+    const payload = await submitJSON("/api/control/scpi/send", { command });
+    renderState(payload.state);
+    showToast(`${command} -> ${payload.entry.response}`, payload.ok ? "ok" : "error");
+  } catch (error) {
+    showToast(`SCPI 发送失败: ${error.message}`, "error");
+  }
 }
 
 async function connectStream() {

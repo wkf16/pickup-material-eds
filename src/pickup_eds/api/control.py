@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 
 from pickup_eds.instruments.simulator import SimulatedBenchService
-from pickup_eds.schemas import FunctionRequest, RangeRequest, ToggleRequest
+from pickup_eds.schemas import FunctionRequest, RangeRequest, ScpiCommandRequest, ToggleRequest
 
 router = APIRouter(prefix="/api/control", tags=["control"])
 
@@ -35,3 +35,25 @@ async def set_zero_correct(payload: ToggleRequest, request: Request) -> dict[str
     state = await _service(request).set_zero_correct(payload.on)
     return {"ok": True, "state": state.model_dump(mode="json")}
 
+
+@router.get("/scpi/log")
+async def get_scpi_log(request: Request) -> dict[str, object]:
+    service = _service(request)
+    entries = await service.scpi_log()
+    snapshot = await service.snapshot_state()
+    return {
+        "port": snapshot.scpi_port,
+        "items": [entry.model_dump(mode="json") for entry in entries],
+    }
+
+
+@router.post("/scpi/send")
+async def send_scpi(payload: ScpiCommandRequest, request: Request) -> dict[str, object]:
+    service = _service(request)
+    entry = await service.send_scpi(payload.command)
+    state = await service.snapshot_state()
+    return {
+        "ok": entry.ok,
+        "entry": entry.model_dump(mode="json"),
+        "state": state.model_dump(mode="json"),
+    }

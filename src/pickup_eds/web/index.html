@@ -12,6 +12,7 @@
         <div>
           <p class="eyebrow">pickup-material-eds / phase 2 preview</p>
           <h1>Keithley 6514 WebUI</h1>
+          <p class="lede">Built by okonfu</p>
         </div>
         <div class="hero-meta">
           <div class="meta-chip">
@@ -30,6 +31,61 @@
       </header>
 
       <main class="grid">
+        <section class="card tutorial-card">
+          <div class="card-head">
+            <h2>6514 使用 / 调试教程</h2>
+            <span>guide</span>
+          </div>
+          <div class="tutorial-body tutorial-grid">
+            <article>
+              <h3>1. 启动机器</h3>
+              <p>先确认实验室主机 Dell Precision 3660 已上电，网线正常，等它回到内网。若你在本机上远程操作，先确认能通 <code>203-precision3660</code> 或 <code>10.24.32.98</code>。</p>
+              <p>远程登录建议直接用 <code>ssh a203@203-precision3660</code>。若只在内网可达，也可以用 <code>ssh a203@10.24.32.98</code>。进机后先看 <code>python3 --version</code> 和 webui 服务是否在 <code>:8000</code>。</p>
+            </article>
+            <article>
+              <h3>2. 基础接线</h3>
+              <p>6514 通过 RS-232 USB 串口接主机，默认链路是 <code>9600 / 8N1 / XonXoff / CR</code>。采集链路是 6514 后面板 <code>2V ANALOG OUTPUT</code> 走 BNC 到 USB-6002，DAQ 端建议用 <code>AI0 DIFF</code>。</p>
+              <p>传感器接 6514 三轴输入，铜箔屏蔽或参考屏蔽层接 <code>COMMON</code>。若是做空气麦或贴喇叭实验，线缆一定要先固定，避免摩擦电噪声。</p>
+            </article>
+            <article>
+              <h3>3. 调零时怎么接</h3>
+              <p>调零阶段不要先接传感器。最稳妥的做法是给 6514 输入上三轴短路帽，或者把中心导体与屏蔽短接，形成"输入短路"状态。这样做是为了让 <code>Zero Check</code> 和 <code>Zero Correct</code> 在已知零输入下完成。</p>
+              <p>如果已经接了传感器，先断开传感器，再调零；不要带着漂移源直接做零校准。调零完成后，再恢复传感器和 DAQ 链路。</p>
+            </article>
+            <article>
+              <h3>4. 标准调零顺序</h3>
+              <p>推荐顺序直接按现有脚本和实验文档来：<code>*RST</code> → <code>*CLS</code> → <code>SYST:ZCH ON</code> → <code>FUNC "VOLT"</code> → <code>VOLT:RANG 2</code> 或 <code>20</code> → 关闭 <code>AUTO RANGE</code> / <code>AZER</code> / 数字滤波 → <code>SYST:ZCOR ON</code> → <code>SYST:ZCH OFF</code>。</p>
+              <p>调零完成后立刻用 <code>FUNC?</code>、<code>RANG?</code>、<code>SYST:ZCH?</code>、<code>SYST:ZCOR?</code> 回读确认，不要只凭前面板感觉。</p>
+            </article>
+            <article>
+              <h3>5. 开始测量前的检查</h3>
+              <p>先发 <code>*IDN?</code>，确认回传里有 <code>MODEL 6514</code> 和序列号。再确认当前功能、量程、Zero Check 状态都对。若是看模拟输出链路，优先用 <code>VOLT</code> 模式，小信号先锁 <code>2V</code>，不够再升到 <code>20V</code>。</p>
+              <p>如果是 USB-6002 同步采集，确认 BNC 已接，DAQ 侧是差分输入，采样率先从 <code>5 kS/s</code> 或 <code>10 kS/s</code> 起，不要一上来就堆到最大。</p>
+            </article>
+            <article>
+              <h3>6. 录制与调试</h3>
+              <p>录制前先用下面的 COM/SCPI 控制台跑一遍 <code>*IDN?</code>、<code>FUNC?</code>、<code>RANG?</code>、<code>READ?</code>。只有这些都正常，才点录制。这样出现问题时能快速判断是串口、量程、还是采样链路的问题。</p>
+              <p>如果需要跑仓库里的裸脚本，可在实验机上执行 <code>python scripts/capture_freqresp.py --duration 12 --range 2 --out data/exp01/test.npy</code>。看到提示后再播激励信号。</p>
+            </article>
+            <article>
+              <h3>7. 常用命令速查</h3>
+              <ul class="contract-list">
+                <li><code>*IDN?</code> 识别仪器和序列号</li>
+                <li><code>FUNC?</code> / <code>FUNC "VOLT"</code> 查询或切换功能</li>
+                <li><code>VOLT:RANG?</code> / <code>VOLT:RANG 2</code> 查询或设置量程</li>
+                <li><code>SYST:ZCH ON|OFF</code> 开关 Zero Check</li>
+                <li><code>SYST:ZCOR ON</code> 做一次 Zero Correct</li>
+                <li><code>READ?</code> 拉一笔当前读数</li>
+              </ul>
+            </article>
+            <article>
+              <h3>8. 常见错误</h3>
+              <p>拿不到 <code>*IDN?</code> 时，优先怀疑 COM 口、波特率、Xon/Xoff、终止符是否还是 <code>CR</code>。读数漂得离谱时，优先怀疑没短路调零、屏蔽没接 COMMON、线缆在动、或者量程太小导致顶满。</p>
+              <p>若 WebUI 控制正常但采样没有波形，优先看 6514 到 USB-6002 的 BNC 是否接好，再看 DAQ 是否在差分模式，最后再查采样率和缓冲。</p>
+            </article>
+          </div>
+        </section>
+
         <section class="card control-card">
           <div class="card-head">
             <h2>仪器控制</h2>
@@ -135,6 +191,29 @@
           <p class="hint">
             当前是模拟源。真实链路接入时，保留这些 REST/WS 路径，替换后端 service 即可。
           </p>
+        </section>
+
+        <section class="card scpi-card">
+          <div class="card-head">
+            <h2>COM / SCPI 控制台</h2>
+            <span id="scpiPortText">COM?-</span>
+          </div>
+          <label>
+            <span>Command</span>
+            <div class="command-row">
+              <input id="scpiCommandInput" type="text" value="*IDN?" maxlength="256" />
+              <button class="primary" id="sendScpiBtn">发送</button>
+            </div>
+          </label>
+          <div class="quick-row">
+            <button data-scpi="*IDN?">*IDN?</button>
+            <button data-scpi="FUNC?">FUNC?</button>
+            <button data-scpi="RANG?">RANG?</button>
+            <button data-scpi="READ?">READ?</button>
+            <button data-scpi="SYST:ZCH ON">ZCH ON</button>
+            <button data-scpi="SYST:ZCH OFF">ZCH OFF</button>
+          </div>
+          <div class="scpi-console" id="scpiLog"></div>
         </section>
 
         <section class="card dataset-card">

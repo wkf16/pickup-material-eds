@@ -10,7 +10,7 @@ import numpy as np
 from pickup_eds.config import Settings
 from pickup_eds.core.ring_buffer import RingBuffer, decimate_pair
 from pickup_eds.core.storage import StorageManager
-from pickup_eds.schemas import AppState, ControlState, DaqState, DatasetSummary, RecordingState
+from pickup_eds.schemas import AppState, ControlState, DaqState, DatasetSummary, RecordingState, ScpiLogEntry
 
 
 class SimulatedBenchService:
@@ -26,6 +26,15 @@ class SimulatedBenchService:
         )
         self._recording = RecordingState(active=False)
         self._datasets: list[DatasetSummary] = []
+        self._scpi_port = "COM3 (simulated)"
+        self._scpi_log: list[ScpiLogEntry] = [
+            ScpiLogEntry(
+                at=datetime.now(UTC),
+                port=self._scpi_port,
+                command="*IDN?",
+                response="KEITHLEY INSTRUMENTS INC.,MODEL 6514,4691930,1.0-sim",
+            )
+        ]
         self._record_times: list[np.ndarray] = []
         self._record_values: list[np.ndarray] = []
         self._lock = asyncio.Lock()
@@ -72,6 +81,8 @@ class SimulatedBenchService:
                 ),
                 recording=self._recording,
                 datasets=self._datasets[:20],
+                scpi_port=self._scpi_port,
+                scpi_log=self._scpi_log[:12],
             )
 
     async def set_function(self, func: str) -> AppState:
@@ -136,6 +147,8 @@ class SimulatedBenchService:
                     ),
                     recording=self._recording,
                     datasets=self._datasets[:20],
+                    scpi_port=self._scpi_port,
+                    scpi_log=self._scpi_log[:12],
                 )
                 return inactive_state, self._storage.get_dataset(last_dataset_id) if last_dataset_id else None
             if self._stop_recording_task:
@@ -179,6 +192,27 @@ class SimulatedBenchService:
 
     async def datasets(self) -> list[DatasetSummary]:
         return self._storage.list_datasets()
+
+    async def scpi_log(self) -> list[ScpiLogEntry]:
+        async with self._lock:
+            return self._scpi_log[:20]
+
+    async def send_scpi(self, command: str) -> ScpiLogEntry:
+        normalized = command.strip()
+        response, updates = self._simulate_scpi(normalized)
+        async with self._lock:
+            if updates:
+                self._control = self._control.model_copy(update=updates)
+            entry = ScpiLogEntry(
+                at=datetime.now(UTC),
+                port=self._scpi_port,
+                command=normalized,
+                response=response,
+                ok=not response.startswith("ERR:"),
+            )
+            self._scpi_log = [entry, *self._scpi_log][:20]
+        await self._broadcast_state()
+        return entry
 
     async def preview_dataset(self, dataset_id: str) -> dict[str, object] | None:
         return self._storage.load_preview(dataset_id)
@@ -294,3 +328,47 @@ class SimulatedBenchService:
             queue.put_nowait(payload)
         for queue in stale_queues:
             self._state_watchers.discard(queue)
+
+    def _simulate_scpi(self, command: str) -> tuple[str, dict[str, object]]:
+        upper = command.upper()
+        updates: dict[str, object] = {}
+        if upper == "*IDN?":
+            return "KEITHLEY INSTRUMENTS INC.,MODEL 6514,4691930,1.0-sim", updates
+        if upper == "FUNC?":
+            return self._control.function, updates
+        if upper == "RANG?":
+            return f"{self._control.range}", updates
+        if upper in {"SYST:ZCH?", "ZERO:CHECK?"}:
+            return "1" if self._control.zero_check else "0", updates
+        if upper in {"SYST:ZCOR?", "ZERO:CORRECT?"}:
+            return "1" if self._control.zero_correct else "0", updates
+        if upper.startswith("FUNC "):
+            value = upper.split(" ", 1)[1].strip().replace('"', "")
+            aliases = {"VOLT:DC": "VOLT", "CURRENT:DC": "CURR", "RESISTANCE": "RES", "CHAR": "CHARGE"}
+            mapped = aliases.get(value, value)
+            if mapped in {"VOLT", "CURR", "RES", "CHARGE"}:
+                updates["function"] = mapped
+                return "OK", updates
+            return "ERR: unsupported function", updates
+        if upper.startswith("RANG "):
+            raw = upper.split(" ", 1)[1].strip()
+            try:
+                updates["range"] = float(raw)
+                return "OK", updates
+            except ValueError:
+                return "ERR: invalid range", updates
+        if upper in {"SYST:ZCH ON", "ZERO:CHECK ON"}:
+            updates["zero_check"] = True
+            return "OK", updates
+        if upper in {"SYST:ZCH OFF", "ZERO:CHECK OFF"}:
+            updates["zero_check"] = False
+            return "OK", updates
+        if upper in {"SYST:ZCOR ON", "ZERO:CORRECT ON"}:
+            updates["zero_correct"] = True
+            return "OK", updates
+        if upper in {"SYST:ZCOR OFF", "ZERO:CORRECT OFF"}:
+            updates["zero_correct"] = False
+            return "OK", updates
+        if upper == "READ?":
+            return f"{self._last_rms:.6f}", updates
+        return "ERR: unsupported command in simulated backend", updates

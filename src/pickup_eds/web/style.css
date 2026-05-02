@@ -136,12 +136,14 @@ label span {
 .spectrum-card,
 .preview-card,
 .dataset-card,
-.contract-card {
+.contract-card,
+.tutorial-card {
   grid-column: 2;
 }
 
 .control-card,
-.recording-card {
+.recording-card,
+.scpi-card {
   grid-column: 1;
 }
 
@@ -170,7 +172,9 @@ label span {
 }
 
 .pill-row,
-.action-row {
+.action-row,
+.quick-row,
+.command-row {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -297,6 +301,58 @@ input[type="number"] {
   line-height: 1.7;
 }
 
+.command-row {
+  align-items: center;
+}
+
+.command-row input {
+  flex: 1 1 220px;
+}
+
+.quick-row {
+  margin-top: 14px;
+}
+
+.scpi-console {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.scpi-row {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.scpi-row.ok {
+  border-color: rgba(126, 255, 178, 0.18);
+}
+
+.scpi-row.error {
+  border-color: rgba(255, 127, 127, 0.22);
+}
+
+.scpi-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.scpi-tag,
+.scpi-arrow {
+  color: var(--amber);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .dataset-list {
   display: grid;
   gap: 12px;
@@ -334,6 +390,29 @@ input[type="number"] {
   display: grid;
   gap: 10px;
   line-height: 1.7;
+}
+
+.tutorial-body {
+  display: grid;
+  gap: 14px;
+}
+
+.tutorial-body article {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.tutorial-body h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.tutorial-body p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.75;
 }
 
 .toast {
@@ -376,8 +455,10 @@ input[type="number"] {
   .preview-card,
   .dataset-card,
   .contract-card,
+  .tutorial-card,
   .control-card,
-  .recording-card {
+  .recording-card,
+  .scpi-card {
     grid-column: auto;
   }
 

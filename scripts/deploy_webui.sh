@@ -37,6 +37,19 @@ ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new "${REMOTE_HOST}" "
     kill \$(cat webui.pid)
     sleep 1
   fi
+  if command -v ss >/dev/null 2>&1; then
+    pids=\$(ss -ltnp 2>/dev/null | awk '/:${PORT} / {gsub(/pid=/, \"\", \$NF); gsub(/,.*/, \"\", \$NF); print \$NF}')
+  elif command -v fuser >/dev/null 2>&1; then
+    pids=\$(fuser ${PORT}/tcp 2>/dev/null || true)
+  elif command -v lsof >/dev/null 2>&1; then
+    pids=\$(lsof -tiTCP:${PORT} -sTCP:LISTEN || true)
+  else
+    pids=''
+  fi
+  if [ -n \"\${pids}\" ]; then
+    kill \${pids} || true
+    sleep 1
+  fi
   . .venv/bin/activate
   nohup python -m uvicorn pickup_eds.api.main:app --host 0.0.0.0 --port '${PORT}' > webui.log 2>&1 &
   echo \$! > webui.pid

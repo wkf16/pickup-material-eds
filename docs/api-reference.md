@@ -46,7 +46,17 @@
     "sample_count": 0,
     "last_dataset_id": "20260503T025410Z-2d84d001"
   },
-  "datasets": []
+  "datasets": [],
+  "scpi_port": "COM3 (simulated)",
+  "scpi_log": [
+    {
+      "at": "2026-05-03T02:55:00.000000+00:00",
+      "port": "COM3 (simulated)",
+      "command": "*IDN?",
+      "response": "KEITHLEY INSTRUMENTS INC.,MODEL 6514,4691930,1.0-sim",
+      "ok": true
+    }
+  ]
 }
 ```
 
@@ -95,6 +105,53 @@
 ```json
 {
   "ok": true,
+  "state": {
+    "...": "same as GET /api/state"
+  }
+}
+```
+
+### `GET /api/control/scpi/log`
+
+返回最近的 COM/SCPI 调试记录。
+
+```json
+{
+  "port": "COM3 (simulated)",
+  "items": [
+    {
+      "at": "2026-05-03T03:10:00.000000+00:00",
+      "port": "COM3 (simulated)",
+      "command": "*IDN?",
+      "response": "KEITHLEY INSTRUMENTS INC.,MODEL 6514,4691930,1.0-sim",
+      "ok": true
+    }
+  ]
+}
+```
+
+### `POST /api/control/scpi/send`
+
+请求:
+
+```json
+{
+  "command": "*IDN?"
+}
+```
+
+返回:
+
+```json
+{
+  "ok": true,
+  "entry": {
+    "at": "2026-05-03T03:10:00.000000+00:00",
+    "port": "COM3 (simulated)",
+    "command": "*IDN?",
+    "response": "KEITHLEY INSTRUMENTS INC.,MODEL 6514,4691930,1.0-sim",
+    "ok": true
+  },
   "state": {
     "...": "same as GET /api/state"
   }

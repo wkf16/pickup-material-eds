@@ -21,6 +21,10 @@ class ToggleRequest(BaseModel):
     on: bool
 
 
+class ScpiCommandRequest(BaseModel):
+    command: str = Field(min_length=1, max_length=256)
+
+
 class RecordingStartRequest(BaseModel):
     label: str = Field(min_length=1, max_length=64)
     duration_s: float | None = Field(default=5.0, gt=0, le=3600)
@@ -63,10 +67,19 @@ class RecordingState(BaseModel):
     last_dataset_id: str | None = None
 
 
+class ScpiLogEntry(BaseModel):
+    at: datetime
+    port: str
+    command: str
+    response: str
+    ok: bool = True
+
+
 class AppState(BaseModel):
     updated_at: datetime
     control: ControlState
     daq: DaqState
     recording: RecordingState
     datasets: list[DatasetSummary]
-
+    scpi_port: str
+    scpi_log: list[ScpiLogEntry] = []
