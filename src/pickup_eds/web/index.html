@@ -488,6 +488,39 @@ input[type="number"]:focus {
 
 .quick-row { margin-top: 10px; }
 
+/* Grouped SCPI quick buttons — mimic the 6514 front-panel layout */
+.scpi-quick-groups {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.scpi-group {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-sunken);
+}
+.scpi-group-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  font-weight: 600;
+}
+.scpi-group-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.scpi-group-buttons button {
+  padding: 4px 9px;
+  font-size: 12px;
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+}
+
 .scpi-console {
   display: grid;
   gap: 6px;
@@ -846,16 +879,54 @@ input[type="number"]:focus {
               <button class="primary" id="sendScpiBtn">发送</button>
             </div>
           </label>
-          <div class="quick-row">
-            <button data-scpi="*IDN?">*IDN?</button>
-            <button data-scpi="*RST">*RST</button>
-            <button data-scpi="FUNC?">FUNC?</button>
-            <button data-scpi="VOLT:RANG?">VOLT:RANG?</button>
-            <button data-scpi="VOLT:RANG:AUTO ON">RANG AUTO</button>
-            <button data-scpi="READ?">READ?</button>
-            <button data-scpi="SYST:ZCH ON">ZCH ON</button>
-            <button data-scpi="SYST:ZCH OFF">ZCH OFF</button>
-            <button data-scpi="SYST:ZCOR ON">ZCOR ON</button>
+          <div class="scpi-quick-groups">
+            <div class="scpi-group">
+              <span class="scpi-group-label">通用 / System</span>
+              <div class="scpi-group-buttons">
+                <button data-scpi="*IDN?">*IDN?</button>
+                <button data-scpi="*RST">*RST</button>
+                <button data-scpi="*CLS">*CLS</button>
+                <button data-scpi="*ESR?">*ESR?</button>
+              </div>
+            </div>
+            <div class="scpi-group">
+              <span class="scpi-group-label">功能 / Function</span>
+              <div class="scpi-group-buttons">
+                <button data-scpi="FUNC?">FUNC?</button>
+                <button data-scpi='FUNC "VOLT"'>VOLT</button>
+                <button data-scpi='FUNC "CURR"'>CURR</button>
+                <button data-scpi='FUNC "RES"'>RES</button>
+                <button data-scpi='FUNC "CHAR"'>CHAR</button>
+              </div>
+            </div>
+            <div class="scpi-group">
+              <span class="scpi-group-label">量程 / Range</span>
+              <div class="scpi-group-buttons">
+                <button data-scpi="VOLT:RANG?">VOLT:RANG?</button>
+                <button data-scpi="CURR:RANG?">CURR:RANG?</button>
+                <button data-scpi="VOLT:RANG:AUTO ON">AUTO ON</button>
+                <button data-scpi="VOLT:RANG:AUTO OFF">AUTO OFF</button>
+              </div>
+            </div>
+            <div class="scpi-group">
+              <span class="scpi-group-label">调零 / Zero</span>
+              <div class="scpi-group-buttons">
+                <button data-scpi="SYST:ZCH ON">ZCH ON</button>
+                <button data-scpi="SYST:ZCH OFF">ZCH OFF</button>
+                <button data-scpi="SYST:ZCH?">ZCH?</button>
+                <button data-scpi="SYST:ZCOR ON">ZCOR ON</button>
+                <button data-scpi="SYST:ZCOR?">ZCOR?</button>
+                <button data-scpi="SYST:AZER OFF">AZER OFF</button>
+              </div>
+            </div>
+            <div class="scpi-group">
+              <span class="scpi-group-label">读数 / Read</span>
+              <div class="scpi-group-buttons">
+                <button data-scpi="READ?">READ?</button>
+                <button data-scpi=":INIT">INIT</button>
+                <button data-scpi="VOLT:NPLC?">NPLC?</button>
+              </div>
+            </div>
           </div>
           <div class="scpi-console" id="scpiLog"></div>
         </section>
@@ -868,62 +939,112 @@ input[type="number"]:focus {
           <div class="tutorial-body tutorial-grid">
             <article>
               <h3>1. 启动机器</h3>
-              <p>先确认实验室主机 Dell Precision 3660 已上电，网线正常，等它回到内网。若你在本机上远程操作，先确认能通 <code>203-precision3660</code> 或 <code>10.24.32.98</code>。</p>
-              <p>远程登录建议直接用 <code>ssh a203@203-precision3660</code>。若只在内网可达，也可以用 <code>ssh <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="e485d6d4d7a4d5d4cad6d0cad7d6cadddc">[email&#160;protected]</a></code>。进机后先看 <code>python3 --version</code> 和 webui 服务是否在 <code>:8000</code>。</p>
+              <p>确认实验室主机 Dell Precision 3660 已上电、网线正常，并且能从你这边通到 <code>203-precision3660</code> / <code>10.24.32.98</code>（或 Tailscale <code>100.110.247.81</code>）。</p>
+              <p>SSH 进机：<code>ssh a203@203-precision3660</code>。WebUI 默认在 <code>:80</code>，浏览器开 <code>http://10.24.32.98</code> 即可（端口已不需要带）。</p>
             </article>
             <article>
               <h3>2. 基础接线</h3>
-              <p>6514 通过 RS-232 USB 串口接主机，默认链路是 <code>9600 / 8N1 / XonXoff / CR</code>。采集链路是 6514 后面板 <code>2V ANALOG OUTPUT</code> 走 BNC 到 USB-6002，DAQ 端建议用 <code>AI0 DIFF</code>。</p>
-              <p>传感器接 6514 三轴输入，铜箔屏蔽或参考屏蔽层接 <code>COMMON</code>。若是做空气麦或贴喇叭实验，线缆一定要先固定，避免摩擦电噪声。</p>
+              <p>6514 通过 RS-232 USB 串口接主机，链路 <code>9600 / 8N1 / XonXoff / CR</code>。在远端 Linux 上是 <code>/dev/ttyUSB0</code>（pl2303）。</p>
+              <p>采集链路：6514 后面板 <code>2V ANALOG OUTPUT</code> 走 BNC 到 USB-6002，DAQ 端用 <code>AI0 DIFF</code>。传感器接 6514 三轴输入，屏蔽接 <code>COMMON</code>。线缆固定，避免摩擦电噪声。</p>
             </article>
             <article>
-              <h3>3. 调零时怎么接</h3>
-              <p>调零阶段不要先接传感器。最稳妥的做法是给 6514 输入上三轴短路帽，或者把中心导体与屏蔽短接，形成"输入短路"状态。这样做是为了让 <code>Zero Check</code> 和 <code>Zero Correct</code> 在已知零输入下完成。</p>
-              <p>如果已经接了传感器，先断开传感器，再调零；不要带着漂移源直接做零校准。调零完成后，再恢复传感器和 DAQ 链路。</p>
+              <h3>3. 调零接线（输入短路）</h3>
+              <p>调零阶段不要先接传感器。最稳妥的做法是给 6514 输入装三轴短路帽，或把中心导体与屏蔽短接，构造"输入短路"状态，让 <code>Zero Check</code> 和 <code>Zero Correct</code> 在已知零输入下完成。</p>
+              <p>已经接了传感器就先断开再调零。带漂移源直接做零校准会得到错的零点。</p>
             </article>
             <article>
               <h3>4. 标准调零顺序</h3>
-              <p>推荐顺序直接按现有脚本和实验文档来：<code>*RST</code> → <code>*CLS</code> → <code>SYST:ZCH ON</code> → <code>FUNC "VOLT"</code> → <code>VOLT:RANG 2</code> 或 <code>20</code> → 关闭 <code>AUTO RANGE</code> / <code>AZER</code> / 数字滤波 → <code>SYST:ZCOR ON</code> → <code>SYST:ZCH OFF</code>。</p>
-              <p>调零完成后立刻用 <code>FUNC?</code>、<code>RANG?</code>、<code>SYST:ZCH?</code>、<code>SYST:ZCOR?</code> 回读确认，不要只凭前面板感觉。</p>
+              <ol class="contract-list">
+                <li><code>*RST</code> + <code>*CLS</code> 重置 + 清状态</li>
+                <li><code>SYST:ZCH ON</code> 进 Zero Check</li>
+                <li><code>FUNC "VOLT"</code>，再 <code>VOLT:RANG 2</code> 或 <code>20</code></li>
+                <li>关辅助：<code>VOLT:RANG:AUTO OFF</code>、<code>SYST:AZER OFF</code>、<code>AVER:STAT OFF</code></li>
+                <li><code>SYST:ZCOR ON</code> 触发零点校准</li>
+                <li><code>SYST:ZCH OFF</code> 退出，进入正常测量</li>
+              </ol>
+              <p>校完用 <code>FUNC?</code>、<code>VOLT:RANG?</code>、<code>SYST:ZCH?</code>、<code>SYST:ZCOR?</code> 回读确认。</p>
             </article>
             <article>
-              <h3>5. 开始测量前的检查</h3>
-              <p>先发 <code>*IDN?</code>，确认回传里有 <code>MODEL 6514</code> 和序列号。再确认当前功能、量程、Zero Check 状态都对。若是看模拟输出链路，优先用 <code>VOLT</code> 模式，小信号先锁 <code>2V</code>，不够再升到 <code>20V</code>。</p>
-              <p>如果是 USB-6002 同步采集，确认 BNC 已接，DAQ 侧是差分输入，采样率先从 <code>5 kS/s</code> 或 <code>10 kS/s</code> 起，不要一上来就堆到最大。</p>
+              <h3>5. 测量前的快速自检</h3>
+              <p>SCPI 控制台按这个顺序点一遍：<code>*IDN?</code> → <code>SYST:ZCH OFF</code> → <code>FUNC?</code> → <code>VOLT:RANG?</code> → <code>READ?</code>。任意一条飘红或返回奇怪值，先排串口/状态再继续。</p>
+              <p><code>READ?</code> 返回三段 <code>&lt;reading&gt;,&lt;timestamp&gt;,&lt;status&gt;</code>，例如 <code>-7.33E-06,+1.25E+04,+0E+00</code>。Zero Check 没关掉时这条会返回空。</p>
             </article>
             <article>
-              <h3>6. 录制与调试</h3>
-              <p>录制前先用下面的 COM/SCPI 控制台跑一遍 <code>*IDN?</code>、<code>FUNC?</code>、<code>RANG?</code>、<code>READ?</code>。只有这些都正常，才点录制。这样出现问题时能快速判断是串口、量程、还是采样链路的问题。</p>
-              <p>如果需要跑仓库里的裸脚本，可在实验机上执行 <code>python scripts/capture_freqresp.py --duration 12 --range 2 --out data/exp01/test.npy</code>。看到提示后再播激励信号。</p>
+              <h3>6. 录制流程</h3>
+              <p>自检都过之后，在 WebUI 录制卡片填 Label 和 Duration 点开始。当前后端落盘走 <code>.npz</code>，元数据走 SQLite。</p>
+              <p>命令行裸采集：<code>python scripts/capture_freqresp.py --duration 12 --range 2 --out data/exp01/test.npy</code>。看到提示后再播激励信号。</p>
             </article>
             <article>
-              <h3>7. 常用命令速查</h3>
-              <ul class="contract-list">
-                <li><code>*IDN?</code> 识别仪器和序列号</li>
-                <li><code>FUNC?</code> / <code>FUNC "VOLT"</code> 查询或切换功能</li>
-                <li><code>VOLT:RANG?</code> / <code>VOLT:RANG 2</code> 查询或设置量程</li>
-                <li><code>SYST:ZCH ON|OFF</code> 开关 Zero Check</li>
-                <li><code>SYST:ZCOR ON</code> 做一次 Zero Correct</li>
-                <li><code>READ?</code> 拉一笔当前读数</li>
-              </ul>
+              <h3>7. 常见错误</h3>
+              <p><strong>拿不到 <code>*IDN?</code></strong>：先怀疑 COM 口 / 波特率 / Xon/Xoff / 终止符是否还是 <code>CR</code>。<code>/dev/ttyUSB0</code> 不存在则看 <code>docs/dev-real-hardware.md §6</code>。</p>
+              <p><strong>读数飘得离谱</strong>：没短路调零、屏蔽没接 COMMON、线缆在动、量程顶满，按此顺序排。</p>
+              <p><strong>波形空</strong>：6514 → USB-6002 的 BNC 没接好，DAQ 不在差分模式，或采样率/缓冲设置异常。</p>
             </article>
             <article>
-              <h3>8. 常见错误</h3>
-              <p>拿不到 <code>*IDN?</code> 时，优先怀疑 COM 口、波特率、Xon/Xoff、终止符是否还是 <code>CR</code>。读数漂得离谱时，优先怀疑没短路调零、屏蔽没接 COMMON、线缆在动、或者量程太小导致顶满。</p>
-              <p>若 WebUI 控制正常但采样没有波形，优先看 6514 到 USB-6002 的 BNC 是否接好，再看 DAQ 是否在差分模式，最后再查采样率和缓冲。</p>
-            </article>
-            <article>
-              <h3>9. 接口落位 <span class="article-tag">phase 2</span></h3>
-              <p>WebUI ↔ 后端 ↔ 6514/DAQ 这条链路目前规划的接口如下，调试时可以按此核对实际对接进度。</p>
+              <h3>8. 后端 API 接口落位 <span class="article-tag">phase 2</span></h3>
+              <p>WebUI ↔ FastAPI ↔ 6514/DAQ 的接口契约：</p>
               <ul class="contract-list">
                 <li><code>GET /api/state</code> 当前整机状态</li>
-                <li><code>POST /api/control/*</code> 功能/量程/zero-check/zero-correct</li>
+                <li><code>POST /api/control/{function,range,zero-check,zero-correct,scpi/send}</code></li>
                 <li><code>POST /api/recording/{start,stop}</code> 录制生命周期</li>
-                <li><code>GET /api/data/*</code> 数据列表、预览、下载</li>
-                <li><code>/ws/stream</code> 滚动波形流</li>
-                <li><code>/ws/state</code> 状态变更推送</li>
-                <li><code>/ws/snapshot</code> 已占位，待真实触发逻辑接入</li>
+                <li><code>GET /api/data/*</code> 列表/预览/下载</li>
+                <li><code>WS /ws/{stream,state}</code> 波形流 + 状态推送</li>
+                <li><code>WS /ws/snapshot</code> 占位</li>
               </ul>
+            </article>
+            <article>
+              <h3>9. SCPI · 通用 + 测量 + 调零 <span class="article-tag">实测可用</span></h3>
+              <p>真机全识别。✅ = UI 快速按钮已暴露；📝 = 控制台手输。</p>
+              <ul class="contract-list">
+                <li>✅ <code>*IDN?</code>　识别仪器</li>
+                <li>✅ <code>*RST</code>　恢复 GPIB 默认</li>
+                <li>📝 <code>*CLS</code> · <code>*ESR?</code>　清/查状态</li>
+                <li>📝 <code>FUNC "VOLT"|"CURR"|"RES"|"CHAR"</code>　切功能</li>
+                <li>✅ <code>FUNC?</code>　查功能</li>
+                <li>📝 <code>VOLT:RANG &lt;n&gt;</code>　设量程</li>
+                <li>✅ <code>VOLT:RANG?</code>　查量程（必须带 FUNC 前缀）</li>
+                <li>✅ <code>VOLT:RANG:AUTO ON</code>　自动量程</li>
+                <li>✅ <code>SYST:ZCH ON|OFF</code>　Zero Check</li>
+                <li>✅ <code>SYST:ZCOR ON</code>　Zero Correct</li>
+                <li>📝 <code>SYST:ZCH?</code> · <code>SYST:ZCOR?</code>　查状态</li>
+                <li>📝 <code>SYST:AZER ON|OFF</code>　Auto Zero（关掉提速）</li>
+                <li>✅ <code>READ?</code>　触发并读一笔</li>
+              </ul>
+            </article>
+            <article>
+              <h3>10. SCPI · 速率 / 滤波 / 显示 <span class="article-tag">实测可用 · 待暴露</span></h3>
+              <p>真机都识别，UI 暂未做按钮，控制台手输即可。完整后端会把这些接进控制卡片。</p>
+              <ul class="contract-list">
+                <li><code>VOLT:NPLC &lt;n&gt;</code>　集成时间 0.01-10 PLC（噪声 vs 速度）</li>
+                <li><code>CURR:NPLC</code> / <code>RES:NPLC</code> / <code>CHAR:NPLC</code>　各功能独立</li>
+                <li><code>DISP:DIG &lt;n&gt;</code>　显示位数 4-7（默认 6）</li>
+                <li><code>MED:STAT ON|OFF</code> + <code>MED:RANK 1-5</code>　中位数滤波</li>
+                <li><code>AVER:STAT ON|OFF</code> + <code>AVER:COUN 1-100</code>　数字滤波</li>
+                <li><code>AVER:TCON MOV|REP</code>　移动平均 / 重复</li>
+                <li><code>CALC2:NULL:STAT ON</code>　REL（基线相减）</li>
+              </ul>
+            </article>
+            <article>
+              <h3>11. SCPI · Buffer / Limit / Math <span class="article-tag">留给完整后端</span></h3>
+              <p>这一组与 WebUI 现有 ring buffer / 录制 / 后处理重叠。建议在 WebUI 侧做，不在仪器侧（更灵活）。</p>
+              <ul class="contract-list">
+                <li><strong>Buffer</strong>　<code>TRAC:CLE</code>、<code>TRAC:POIN &lt;1-2500&gt;</code>、<code>TRAC:FEED SENS</code>、<code>TRAC:DATA?</code>、<code>FORM:ELEM READ,TIME,STAT</code></li>
+                <li><strong>Buffer 统计</strong>　<code>CALC3:FORM MIN|MAX|MEAN|SDEV|PKPK</code> + <code>CALC3:DATA?</code></li>
+                <li><strong>Limit</strong>　<code>CALC2:LIM:STAT</code>、<code>CALC2:LIM:LOW/UPP</code>、<code>CALC2:LIM:FAIL?</code>（同 LIMit2）</li>
+                <li><strong>Math</strong>　<code>CALC:FORM MXB|PERC</code>、<code>CALC:KMAT:MMF/MBF/MUN/PER</code>、<code>CALC:STAT ON</code>、<code>CALC:DATA?</code></li>
+                <li><strong>Guard</strong>　<code>VOLT:GUAR ON</code> / <code>RES:GUAR ON</code>　高阻抗驱动屏蔽</li>
+              </ul>
+            </article>
+            <article>
+              <h3>12. 完整后端实施优先级 <span class="article-tag">roadmap</span></h3>
+              <p>下次写真机 BenchService 时按这个顺序补，性价比最高（详见 <code>docs/dev-real-hardware.md §5.6</code>）：</p>
+              <ol class="contract-list">
+                <li><strong>Auto range + NPLC</strong>　用户最常调的两个旋钮</li>
+                <li><strong>Filter</strong>（<code>AVER:*</code>、<code>MED:*</code>）　噪声测试场景必需</li>
+                <li><strong><code>:INIT</code> + <code>:READ?</code> 拆开</strong>　让 WebUI 触发与读取解耦</li>
+                <li><strong>Buffer</strong>（<code>TRAC:*</code>）　仅当要替换 ring buffer 才碰</li>
+                <li><strong>Math / Limit</strong>　仪器端 vs WebUI 后处理是个权衡，多数场景后者更灵活</li>
+              </ol>
             </article>
           </div>
         </section>
