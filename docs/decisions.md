@@ -192,6 +192,36 @@
 
 ---
 
+## D-11:Phase 重排 — WebUI 先于实验执行
+
+**时间**:2026-05-03
+**状态**:已采纳,supersedes 原 Phase 1 划分
+
+**背景**:原 Phase 1 把"实验 01:测带宽"作为主交付,试图用裸 `scripts/*.py` 跑实验,然后 Phase 2 才做 WebUI。重新审视后发现这个顺序不对:
+
+- WebUI **本身就是这个项目最重要的实验工具**,而不是装饰
+- 用裸脚本跑一次实验,数据保存格式、控制流、回放方式都临时凑——之后写 WebUI 时还要重新组织
+- 用 WebUI 跑实验,所有动作天然落到代码 + UI 上,不会"跑完就忘"
+
+**决策**:
+- Phase 1 = **驱动 + 链路验证**(只到 "Python 能从 Lab Linux 读 USB-6002 + 控 6514")
+- Phase 2 = **WebUI MVP**
+- Phase 3 = **用 WebUI 跑实验 01 + 录 ML 数据集**
+- Phase 4 = **ML 训练 + 推理回填到 WebUI**
+
+`docs/exp-01-bandwidth-test.md` 文档保留(作为执行手册),只是执行时机移到 Phase 3。
+
+**理由**:
+- 工具优先,实验后置——避免"先用脚本临时跑、再用 WebUI 重跑"的双倍工作
+- 数据格式从一开始就是 Parquet + 元数据 SQLite,无需迁移
+- 实验过程中产生的对工具的反馈,直接喂回 Phase 2 WebUI 的迭代
+
+**代价**:推迟了"看到第一个 Bode 图"的时间(从 Phase 1 推迟到 Phase 3)。但因为 WebUI 写起来快(~1500 行),整体节奏不会差很多。
+
+**何时推翻**:如果 WebUI 写到一半发现核心库(nidaqmx、pyserial)出了大坑,需要先用裸脚本验证某些假设,可以临时跳到 Phase 3 跑一次 smoke 实验,然后回到 Phase 2。这种 "tactical detour" 不算推翻这条决策。
+
+---
+
 ## D-10:ML 训练不放 Web,留 Jupyter / CLI
 
 **时间**:2026-05-02

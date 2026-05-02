@@ -21,9 +21,13 @@ Web-based 控制 + 数据采集系统,用于表征 SLTS 类 TENG/压电"拾音"�
 
 ## 项目状态
 
-- **Phase 1**(进行中):docs + 单文件采集/分析脚本
-- **Phase 2**(计划):FastAPI 后端 + 单页前端 + WebSocket 直播
-- **Phase 3**(计划):ttyd 终端嵌入 + systemd 部署 + 实验流程化
+- **Phase 0** ── 项目骨架 ✅
+- **Phase 1**(进行中) ── NI-DAQmx 驱动 + 端到端链路验证
+- **Phase 2** ── WebUI MVP(实时显示 + 6514 控制 + 录制)
+- **Phase 3** ── 用 WebUI 跑实验 01 + 录 ML 数据集
+- **Phase 4** ── ML 训练 + 推理集成回 WebUI
+
+详细见 [`docs/roadmap.md`](docs/roadmap.md)。
 
 ## 文档导航
 
