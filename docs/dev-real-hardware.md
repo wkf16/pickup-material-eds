@@ -143,10 +143,103 @@ READ?         → -7.334216E-06,+1.252302E+04,+0.000000E+00
 UI 上 SCPI 控制台按这个顺序点一遍可以验全链路：
 
 1. `*IDN?` — 拿到固件标识，确认通信
-2. `SYST:ZCH OFF` — 退出 Zero Check（READ? 才有数据）
-3. `FUNC?` — 看当前功能
-4. `VOLT:RANG?` — 看当前量程
-5. `READ?` — 拉一笔读数
+2. `*RST` — 恢复 GPIB 默认（可选，但能避免上次留下的奇怪状态）
+3. `SYST:ZCH OFF` — 退出 Zero Check（READ? 才有数据）
+4. `FUNC?` — 看当前功能
+5. `VOLT:RANG?` — 看当前量程
+6. `READ?` — 拉一笔读数（默认三段：`<reading>,<timestamp>,<status>`）
+
+### 5.5 官方命令清单 vs 我们覆盖的（对照 Quick Results Guide 2003 版）
+
+源文件: `~/Downloads/Keithley_6514_Quick_Results_Guide.pdf`（已实测全部命令真机均识别）
+
+图例: ✅ UI 快速按钮已暴露 / 📝 仅文档/教程提及 / ⬜ 未覆盖（真机支持，留给完整 BenchService）
+
+**Table 4 — 基本测量** (Quick Guide §SCPI commands)
+
+| SCPI | 说明 | 状态 |
+|------|------|------|
+| `[:SENS[1]]:FUNC <name>` | 选择功能：`VOLT`/`CURR`/`RES`/`CHAR` | 📝 教程 §4 |
+| `[:SENS[1]]:XXX:RANG <n>` | 设量程（XXX = VOLT/CURR/RES/CHAR） | 📝 教程 §7（仅 VOLT） |
+| `[:SENS[1]]:XXX:RANG:AUTO <b>` | 自动量程开关 | ✅ `VOLT:RANG:AUTO ON` |
+| `[:SENS[1]]:VOLT:GUAR <b>` | Volts 测量的 driven guard | ⬜ |
+| `[:SENS[1]]:RES:GUAR <b>` | Ohms 测量的 driven guard | ⬜ |
+| `:SYST:ZCH <b>` | Zero Check | ✅ `SYST:ZCH ON/OFF` |
+| `:READ?` | 触发并取一笔读数 | ✅ |
+
+**Table 8 — 速率 / 位数 / 滤波 / Rel**
+
+| SCPI | 说明 | 状态 |
+|------|------|------|
+| `[:SENS[1]]:VOLT:NPLC <n>` | 集成时间 0.01-10 PLC（噪声 vs 速度） | ⬜ 默认 5.00 |
+| `[:SENS[1]]:CURR:NPLC <n>` | 同上，电流功能 | ⬜ |
+| `[:SENS[1]]:RES:NPLC <n>` | 同上，电阻功能 | ⬜ |
+| `[:SENS[1]]:CHAR:NPLC <n>` | 同上，电荷功能 | ⬜ |
+| `:DISP:DIG <n>` | 显示位数 4-7 | ⬜ 默认 6 |
+| `[:SENS[1]]:MED:RANK <n>` | 中位数滤波秩 1-5 | ⬜ |
+| `[:SENS[1]]:MED:STAT <b>` | 中位数滤波开关 | ⬜ |
+| `[:SENS[1]]:AVER:TCON <name>` | 数字滤波类型：`MOV`/`REP` | ⬜ |
+| `[:SENS[1]]:AVER:COUN <n>` | 数字滤波平均次数 1-100 | ⬜ |
+| `[:SENS[1]]:AVER:STAT <b>` | 数字滤波开关 | ⬜ |
+| `:CALC2:NULL:STAT <b>` | REL（基线相减） | ⬜ |
+
+**Table 9 — Buffer**（与 WebUI 录制功能潜在重叠，但 WebUI 走自己的 ring buffer）
+
+| SCPI | 说明 | 状态 |
+|------|------|------|
+| `:TRAC:CLE` | 清空 buffer | ⬜ |
+| `:TRAC:FREE?` | 查 buffer 字节余量（实测返回 `45000,0`） | ⬜ |
+| `:TRAC:POIN <n>` | 设 buffer 容量 1-2500 | ⬜ |
+| `:TRAC:FEED <name>` | 数据源：`SENS[1]`/`CALC[1]`/`CALC2` | ⬜ |
+| `:TRAC:FEED:CONT <name>` | 控制：`NEV`/`NEXT` | ⬜ |
+| `:TRAC:TST:FORM <name>` | 时间戳格式：`ABS`/`DELT` | ⬜ |
+| `:TRAC:DATA?` | 读所有 buffer 内容 | ⬜ |
+| `:FORM:ELEM <list>` | 读数元素：`READ`/`TIME`/`STAT` | ⬜ |
+| `:CALC3:FORM <name>` | buffer 统计量：`MIN`/`MAX`/`MEAN`/`SDEV`/`PKPK` | ⬜ |
+| `:CALC3:DATA?` | 读统计量 | ⬜ |
+
+**Table 12 — Limit testing**
+
+| SCPI | 说明 | 状态 |
+|------|------|------|
+| `:CALC2:LIM:STAT <b>` | Limit 1 开关 | ⬜ |
+| `:CALC2:LIM:LOW/UPP <n>` | Limit 1 上下界 | ⬜ |
+| `:CALC2:LIM:FAIL?` | Limit 1 结果（0=pass, 1=fail） | ⬜ |
+| `:CALC2:LIM2:*` | Limit 2 同上 | ⬜ |
+
+**Table 14 — mX+b / Percent**
+
+| SCPI | 说明 | 状态 |
+|------|------|------|
+| `:CALC:FORM <name>` | `MXB` 或 `PERC` | ⬜ |
+| `:CALC:KMAT:MMF/MBF <n>` | mX+b 的 m / b | ⬜ |
+| `:CALC:KMAT:MUN <name>` | mX+b 的单位（1-2 字符） | ⬜ |
+| `:CALC:KMAT:PER <n>` | Percent 的参考值 | ⬜ |
+| `:CALC:STAT <b>` | 数学功能开关 | ⬜ |
+| `:CALC:DATA?` | 读结果 | ⬜ |
+
+**Quick Guide 没列、但实测真机支持的额外命令**
+
+| SCPI | 说明 | 状态 |
+|------|------|------|
+| `*RST` | 恢复 GPIB 默认 | ✅ + 教程 §4 |
+| `*CLS` | 清状态 | 📝 教程 §4 |
+| `*ESR?` | Event Status Register | ⬜ |
+| `:SYST:ZCOR <b>` | Zero Correct（用 ZCH 配合做零点校准） | ✅ + 教程 §4 §7 |
+| `:SYST:ZCOR?` | 查 Zero Correct 状态 | ⬜ |
+| `:SYST:AZER <b>` | Auto Zero 周期校准（默认 ON） | 📝 教程 §4 |
+| `:SYST:AZER?` | 查 Auto Zero 状态 | ⬜ |
+| `:INIT` | 触发一次（不取数据） | ⬜ |
+
+### 5.6 完整 BenchService 接入这些命令时的优先级建议
+
+写真机 BenchService 时按这个顺序补，性价比最高：
+
+1. **Auto range** (`*:RANG:AUTO ON/OFF`) + **NPLC** — 用户最常调的两个
+2. **Filter** (`AVER:*` 和 `MED:*`) — 噪声测试场景必需
+3. **`:INIT` + `:READ?`** 拆开 — 让 WebUI 触发与读取解耦
+4. **Buffer** (`:TRAC:*`) — 仅当要替换当前 ring buffer 实现时才碰
+5. **Math / Limit** — 真机上处理还是 WebUI 后处理是个权衡，可能后者更灵活
 
 ---
 
