@@ -39,12 +39,13 @@ Web-based 控制 + 数据采集系统,用于表征 SLTS 类 TENG/压电"拾音"�
 | **目标系统怎么设计的、模块怎么分** | [`docs/architecture.md`](docs/architecture.md) |
 | **为什么选 X 不选 Y(技术选型理由)** | [`docs/decisions.md`](docs/decisions.md) |
 | **下一个实验怎么做(测 TENG 材料带宽)** | [`docs/exp-01-bandwidth-test.md`](docs/exp-01-bandwidth-test.md) |
+| **这次 WebUI 交付了什么、怎么部署** | [`docs/webui-mvp-delivery.md`](docs/webui-mvp-delivery.md) |
+| **当前 WebUI 的 REST / WS 契约** | [`docs/api-reference.md`](docs/api-reference.md) |
 | **现有脚本怎么用** | [`scripts/README.md`](scripts/README.md) |
 
 未来加入(标记位置):
 - `docs/exp-01-results.md` ── 实验 01 结果与决策
 - `docs/exp-02-*.md` ── 后续实验
-- `docs/api-reference.md` ── Phase 2 完成后,REST/WS 端点参考
 
 ## 快速开始
 
@@ -58,6 +59,13 @@ ssh a203@10.24.32.98     # 当前直连;后续会切到 Tailscale
 # 或: ssh a203@203-precision3660    (Tailscale 启用后)
 cd <项目同步目录>
 python scripts/capture_freqresp.py --help
+
+# WebUI 本地预览
+cd /Users/okonfu/Projects/pickup-material-eds-webui-wt
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -e .
+python -m uvicorn pickup_eds.api.main:app --host 0.0.0.0 --port 8000
 ```
 
 ## 参考
