@@ -56,12 +56,12 @@ python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e .
-python -m uvicorn pickup_eds.api.main:app --host 0.0.0.0 --port 8000
+python -m uvicorn pickup_eds.api.main:app --host 0.0.0.0 --port 80
 ```
 
 打开:
 
-- `http://127.0.0.1:8000`
+- `http://127.0.0.1:80`
 
 ## 4. 远端部署
 
@@ -76,7 +76,7 @@ bash scripts/deploy_webui.sh
 
 1. `rsync` 代码到 `/home/a203/pickup-material-eds-webui`
 2. 在远端创建 `.venv` 并 `pip install -e .`
-3. 用 `nohup uvicorn ... --host 0.0.0.0 --port 8000` 拉起服务
+3. 用 `nohup uvicorn ... --host 0.0.0.0 --port 80` 拉起服务
 
 若要改目标:
 
@@ -88,13 +88,13 @@ bash scripts/deploy_webui.sh a203@10.24.32.98 /home/a203/pickup-material-eds-web
 
 部署成功后，预期访问地址是:
 
-- `http://203-precision3660:8000`
-- 或 `http://10.24.32.98:8000`
+- `http://203-precision3660:80`
+- 或 `http://10.24.32.98:80`
 
 实际可达性取决于:
 
 - 远端机器在线
-- 8000 端口没有被本机防火墙拦住
+- 80 端口没有被本机防火墙拦住
 - 当前网络能到达实验机所在内网或 Tailscale 名称
 
 ## 6. 真机接入时按这个顺序换
