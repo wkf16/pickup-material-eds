@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.python-version
+*.egg-info/
+
+# Data (实验数据不进 git,体积大且属敏感)
+data/
+*.npy
+*.wav
+*.csv
+*.parquet
+
+# Plots & generated artifacts
+*.png
+!docs/**/*.png
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.swp
+
+# Local config / secrets
+.env
+*.local.toml
