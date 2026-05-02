@@ -4,175 +4,205 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Keithley 6514 WebUI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+/* ============================================================
+   Stripe Dashboard — Light, dense, indigo primary
+   Reference: stripe.com/docs, Stripe Dashboard
+   ============================================================ */
+
 :root {
-  --bg: #071018;
-  --bg-soft: #0d1721;
-  --card: rgba(11, 23, 33, 0.84);
-  --line: rgba(255, 255, 255, 0.08);
-  --text: #f3f8fb;
-  --muted: #91a4b1;
-  --green: #7effb2;
-  --amber: #ffb24d;
-  --blue: #59b8ff;
-  --danger: #ff7f7f;
-  --shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+  /* Surfaces */
+  --bg:                 #f6f9fc;             /* page bg, Stripe site light gray */
+  --surface:            #ffffff;
+  --surface-alt:        #fbfbfd;             /* subtle stripe between rows */
+  --surface-sunken:     #f3f4f7;             /* canvas / code blocks */
+  --surface-hover:      #f5f6f8;
+  --line:               #e3e8ee;             /* Stripe rule line */
+  --line-strong:        #cdd5de;
+
+  /* Text */
+  --text:               #0a2540;             /* Stripe ink */
+  --text-2:             #425466;             /* secondary */
+  --text-3:             #697386;             /* tertiary / labels */
+  --text-on-primary:    #ffffff;
+
+  /* Brand — Stripe indigo */
+  --primary:            #635bff;
+  --primary-hover:      #5851e6;
+  --primary-active:     #4f47cc;
+  --primary-soft:       #efeefe;
+  --primary-soft-text:  #3d36c9;
+
+  /* Status */
+  --success:            #00875a;
+  --success-soft:       #e3fcef;
+  --warning:            #b54708;
+  --warning-soft:       #fff5e0;
+  --danger:             #cd3d64;
+  --danger-soft:        #ffe7ef;
+  --info:               #0073e6;
+  --info-soft:          #e0f0ff;
+
+  /* Type */
+  --font-sans: "Inter", "PingFang SC", "Noto Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "IBM Plex Mono", ui-monospace, monospace;
+
+  /* Shadows — Stripe uses elevation generously */
+  --shadow-xs: 0 1px 1px rgba(50,50,93,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm: 0 2px 5px -1px rgba(50,50,93,0.10), 0 1px 3px -1px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 14px -2px rgba(50,50,93,0.10), 0 2px 6px -2px rgba(0,0,0,0.06);
+  --shadow-lg: 0 13px 27px -5px rgba(50,50,93,0.18), 0 8px 16px -8px rgba(0,0,0,0.10);
+
+  /* Radius */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+  --r-xl: 12px;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
+
+html, body { background: var(--bg); }
 
 body {
   margin: 0;
   color: var(--text);
-  font-family: "Avenir Next", "Segoe UI Variable", "IBM Plex Sans", "PingFang SC", "Noto Sans SC", sans-serif;
-  background:
-    radial-gradient(circle at top left, rgba(89, 184, 255, 0.18), transparent 28%),
-    radial-gradient(circle at top right, rgba(255, 178, 77, 0.16), transparent 24%),
-    linear-gradient(135deg, #071018 0%, #0a131c 48%, #09141b 100%);
-  min-height: 100vh;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.2));
-  pointer-events: none;
+code, kbd, samp {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  padding: 2px 6px;
+  border-radius: var(--r-sm);
+  background: var(--surface-sunken);
+  color: var(--text);
+  border: 1px solid var(--line);
 }
 
 .shell {
   width: min(1400px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 28px 0 40px;
+  padding: 32px 0 64px;
 }
 
+/* ---------------- Hero / page header ---------------- */
 .hero {
   display: flex;
   justify-content: space-between;
-  gap: 20px;
-  padding: 28px 30px;
+  align-items: flex-end;
+  gap: 24px;
+  padding: 28px 32px;
+  background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 28px;
-  background: linear-gradient(180deg, rgba(19, 34, 47, 0.92), rgba(8, 17, 24, 0.92));
-  box-shadow: var(--shadow);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: linear-gradient(90deg, #635bff 0%, #00d4ff 50%, #635bff 100%);
 }
 
 .eyebrow {
-  margin: 0 0 10px;
-  color: var(--amber);
-  font-size: 0.82rem;
-  letter-spacing: 0.18em;
+  margin: 0 0 12px;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
 .hero h1 {
   margin: 0 0 10px;
-  font-size: clamp(2rem, 5vw, 3.6rem);
-  line-height: 0.95;
+  font-family: var(--font-sans);
+  font-size: clamp(28px, 4vw, 44px);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--text);
 }
 
 .lede {
   margin: 0;
   max-width: 48rem;
-  color: var(--muted);
-  font-size: 1rem;
-  line-height: 1.7;
+  color: var(--text-2);
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 .hero-meta {
   display: grid;
   grid-template-columns: repeat(3, minmax(110px, 1fr));
-  gap: 12px;
+  gap: 10px;
   min-width: min(420px, 100%);
-}
-
-.meta-chip,
-.card,
-.dataset-row,
-.toggle {
-  backdrop-filter: blur(10px);
 }
 
 .meta-chip {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 6px;
-  padding: 16px 18px;
+  gap: 4px;
+  padding: 12px 14px;
+  background: var(--surface-alt);
   border: 1px solid var(--line);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--r-md);
 }
-
-.meta-chip span,
-.card-head span,
-.group-title,
-.stats article span,
-.hint,
-.dataset-row span,
-label span {
-  color: var(--muted);
+.meta-chip span {
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
-
 .meta-chip strong {
-  font-size: 1.05rem;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
 }
 
+/* ---------------- Grid ---------------- */
 .grid {
   display: grid;
-  grid-template-columns: 340px minmax(0, 1fr);
-  gap: 18px;
-  margin-top: 18px;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 16px;
 }
 
 .card {
-  padding: 22px;
+  padding: 22px 24px;
+  background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 24px;
-  background: var(--card);
-  box-shadow: var(--shadow);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-xs);
 }
 
 .scope-card,
 .dataset-card,
-.tutorial-card {
-  grid-column: 2;
-}
+.tutorial-card { grid-column: 2; }
 
 .control-card,
 .recording-card,
-.scpi-card {
-  grid-column: 1;
-}
+.scpi-card     { grid-column: 1; }
 
 .preview-card,
-.contract-card {
-  grid-column: 1 / -1;
-}
+.contract-card { grid-column: 1 / -1; }
 
-.card-subhead {
+.scpi-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin: 22px 0 12px;
-  padding-top: 18px;
-  border-top: 1px solid var(--line);
-}
-
-.card-subhead h3 {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.card-subhead span {
-  color: var(--muted);
+  flex-direction: column;
 }
 
 .card-head {
@@ -181,324 +211,465 @@ label span {
   justify-content: space-between;
   gap: 14px;
   margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
 }
 
 .card-head h2 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
 }
 
-.group {
-  margin-bottom: 18px;
+.card-head span {
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-mono);
 }
+
+.card-subhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 22px 0 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.card-subhead h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.card-subhead span {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+/* ---------------- Group label ---------------- */
+.group { margin-bottom: 18px; }
 
 .group-title {
-  margin: 0 0 10px;
-  font-size: 0.84rem;
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
+  color: var(--text-3);
 }
 
+/* ---------------- Buttons (Stripe) ---------------- */
 .pill-row,
 .action-row,
 .quick-row,
 .command-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-}
-
-button,
-.dataset-actions a,
-input {
-  font: inherit;
+  gap: 6px;
 }
 
 button,
 .dataset-actions a {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
-  padding: 10px 14px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  padding: 7px 12px;
   color: var(--text);
   text-decoration: none;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--surface);
   cursor: pointer;
-  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+  box-shadow: var(--shadow-xs);
+  transition: background 80ms ease, border-color 80ms ease, color 80ms ease, box-shadow 80ms ease;
+  user-select: none;
 }
-
 button:hover,
 .dataset-actions a:hover {
-  transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--surface-hover);
+  border-color: var(--text-3);
+}
+button:focus-visible,
+.dataset-actions a:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(99,91,255,0.18);
+}
+button:active,
+.dataset-actions a:active {
+  background: var(--surface-sunken);
 }
 
 button.active {
-  border-color: rgba(126, 255, 178, 0.8);
-  background: rgba(126, 255, 178, 0.14);
-  color: var(--green);
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary-soft-text);
+  box-shadow: var(--shadow-xs), 0 0 0 1px var(--primary) inset;
 }
 
 button.primary {
-  background: linear-gradient(135deg, rgba(126, 255, 178, 0.26), rgba(89, 184, 255, 0.2));
-  border-color: rgba(126, 255, 178, 0.45);
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--text-on-primary);
+  box-shadow: 0 1px 2px rgba(99,91,255,0.3);
+}
+button.primary:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+button.primary:active {
+  background: var(--primary-active);
 }
 
 button.secondary {
-  border-color: rgba(255, 178, 77, 0.45);
-  color: var(--amber);
+  background: var(--surface);
+  border-color: var(--warning);
+  color: var(--warning);
+}
+button.secondary:hover {
+  background: var(--warning-soft);
 }
 
+/* ---------------- Toggle list ---------------- */
 .toggle-list {
   display: grid;
-  gap: 12px;
+  gap: 8px;
   margin-bottom: 18px;
 }
-
 .toggle {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 10px 14px;
+  border-radius: var(--r-md);
+  background: var(--surface-alt);
   border: 1px solid var(--line);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  transition: background 80ms ease, border-color 80ms ease;
+}
+.toggle:hover { background: var(--surface-hover); border-color: var(--line-strong); }
+.toggle span {
+  flex: 1;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
 }
 
-.toggle input {
-  inline-size: 18px;
-  block-size: 18px;
+/* iOS-style switch */
+.toggle input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--line-strong);
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+.toggle input[type="checkbox"]::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--shadow-xs);
+  transition: left 150ms ease;
+}
+.toggle input[type="checkbox"]:checked {
+  background: var(--primary);
+}
+.toggle input[type="checkbox"]:checked::before {
+  left: 18px;
+}
+.toggle input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
+/* ---------------- Stats ---------------- */
 .stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
 }
-
-.stats.slim {
-  margin-top: 18px;
-}
+.stats.slim { margin-top: 16px; }
 
 .stats article {
   display: grid;
-  gap: 6px;
-  padding: 14px;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--surface-alt);
   border: 1px solid var(--line);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.025);
 }
-
+.stats article span {
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
 .stats article strong {
-  font-size: 1.05rem;
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
 }
 
+/* ---------------- Canvas ---------------- */
 canvas {
   width: 100%;
   height: auto;
   display: block;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  background: #09131a;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface-sunken);
 }
 
-.form-grid {
-  display: grid;
-  gap: 12px;
-}
+/* ---------------- Form fields ---------------- */
+.form-grid { display: grid; gap: 12px; }
 
-label {
-  display: grid;
-  gap: 8px;
+label { display: grid; gap: 6px; }
+
+label > span {
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
 input[type="text"],
 input[type="number"] {
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid var(--line);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line-strong);
   color: var(--text);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+  transition: border-color 80ms ease, box-shadow 80ms ease;
+}
+input[type="text"]:hover,
+input[type="number"]:hover {
+  border-color: var(--text-3);
+}
+input[type="text"]:focus,
+input[type="number"]:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(99,91,255,0.18);
 }
 
-.action-row {
-  margin-top: 16px;
-}
+.action-row { margin-top: 14px; }
 
 .hint {
-  margin: 16px 0 0;
-  line-height: 1.7;
+  margin: 14px 0 0;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
-.command-row {
-  align-items: center;
-}
+/* ---------------- SCPI console ---------------- */
+.command-row { align-items: stretch; gap: 8px; }
+.command-row input { flex: 1 1 220px; }
 
-.command-row input {
-  flex: 1 1 220px;
-}
-
-.quick-row {
-  margin-top: 14px;
-}
+.quick-row { margin-top: 10px; }
 
 .scpi-console {
   display: grid;
-  gap: 10px;
-  margin-top: 16px;
-  max-height: 320px;
+  gap: 6px;
+  margin-top: 14px;
+  flex: 1 1 auto;
+  min-height: 200px;
   overflow: auto;
+  padding-right: 4px;
+  align-content: start;
 }
 
 .scpi-row {
   display: grid;
-  gap: 8px;
-  padding: 14px;
-  border-radius: 16px;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.025);
+  background: var(--surface-alt);
 }
-
-.scpi-row.ok {
-  border-color: rgba(126, 255, 178, 0.18);
-}
-
-.scpi-row.error {
-  border-color: rgba(255, 127, 127, 0.22);
-}
+.scpi-row.ok    { border-left: 3px solid var(--success); }
+.scpi-row.error { border-left: 3px solid var(--danger); }
 
 .scpi-line {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text);
 }
 
 .scpi-tag,
 .scpi-arrow {
-  color: var(--amber);
-  font-size: 0.82rem;
-  letter-spacing: 0.08em;
+  color: var(--text-3);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
-.dataset-list {
-  display: grid;
-  gap: 12px;
-}
+/* ---------------- Datasets ---------------- */
+.dataset-list { display: grid; gap: 8px; }
 
 .dataset-row {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
   gap: 10px;
-  padding: 14px;
-  border-radius: 18px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.025);
+  background: var(--surface);
+  transition: background 80ms ease, border-color 80ms ease;
+}
+.dataset-row:hover {
+  background: var(--surface-alt);
+  border-color: var(--line-strong);
 }
 
-.dataset-row div {
-  display: grid;
-  gap: 4px;
+.dataset-row div { display: grid; gap: 2px; }
+.dataset-row span {
+  color: var(--text-3);
+  font-size: 12px;
+}
+.dataset-row strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
 }
 
 .dataset-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .empty {
   margin: 0;
-  color: var(--muted);
+  color: var(--text-3);
+  font-size: 13px;
 }
 
+/* ---------------- Lists ---------------- */
 .contract-list {
   margin: 0;
-  padding-left: 20px;
+  padding-left: 22px;
   display: grid;
-  gap: 10px;
-  line-height: 1.7;
+  gap: 6px;
+  line-height: 1.6;
+  color: var(--text);
+  font-size: 13.5px;
 }
+.contract-list li::marker { color: var(--primary); }
 
-.tutorial-body {
-  display: grid;
-  gap: 14px;
-}
+/* ---------------- Tutorial ---------------- */
+.tutorial-body { display: grid; gap: 10px; }
 
 .tutorial-body article {
-  padding: 14px 16px;
+  padding: 14px 18px;
+  border-radius: var(--r-md);
+  background: var(--surface-alt);
   border: 1px solid var(--line);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.025);
 }
 
 .tutorial-body h3 {
-  margin: 0 0 8px;
-  font-size: 1rem;
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--text);
 }
 
 .tutorial-body p {
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.75;
+  margin: 0 0 6px;
+  color: var(--text-2);
+  font-size: 13.5px;
+  line-height: 1.6;
 }
+.tutorial-body p:last-child { margin-bottom: 0; }
 
 .tutorial-body .contract-list {
   margin: 0;
-  padding-left: 20px;
-  color: var(--muted);
-  line-height: 1.85;
+  padding-left: 22px;
+  color: var(--text-2);
+  font-size: 13.5px;
+  line-height: 1.7;
 }
 
 .tutorial-body h3 .article-tag {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   margin-left: 8px;
   padding: 2px 8px;
   border-radius: 999px;
-  border: 1px solid var(--line);
-  background: rgba(89, 184, 255, 0.12);
-  color: var(--blue);
-  font-size: 0.7rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
+  background: var(--primary-soft);
+  color: var(--primary-soft-text);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
   vertical-align: middle;
 }
 
+/* ---------------- Toast ---------------- */
 .toast {
   position: fixed;
   right: 24px;
   bottom: 24px;
-  min-width: 220px;
-  max-width: 420px;
-  padding: 14px 18px;
-  border-radius: 16px;
-  border: 1px solid var(--line);
-  background: rgba(10, 19, 27, 0.92);
-  color: var(--text);
-  transform: translateY(18px);
+  min-width: 240px;
+  max-width: 480px;
+  padding: 12px 16px;
+  border-radius: var(--r-md);
+  background: var(--text);
+  color: #fff;
+  border: 1px solid var(--text);
+  box-shadow: var(--shadow-lg);
+  font-size: 13px;
+  transform: translateY(20px);
   opacity: 0;
   pointer-events: none;
   transition: transform 180ms ease, opacity 180ms ease;
 }
+.toast.visible { transform: translateY(0); opacity: 1; }
+.toast[data-tone="ok"]    { border-left: 4px solid var(--success); }
+.toast[data-tone="error"] { border-left: 4px solid var(--danger); }
 
-.toast.visible {
-  transform: translateY(0);
-  opacity: 1;
+/* ---------------- Selection / scrollbar ---------------- */
+::selection {
+  background: rgba(99,91,255,0.18);
+  color: var(--text);
 }
-
-.toast[data-tone="ok"] {
-  border-color: rgba(126, 255, 178, 0.45);
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 999px;
+  border: 2px solid var(--surface);
 }
+::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
 
-.toast[data-tone="error"] {
-  border-color: rgba(255, 127, 127, 0.45);
-}
-
+/* ---------------- Responsive ---------------- */
 @media (max-width: 1100px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
-
+  .grid { grid-template-columns: 1fr; }
   .scope-card,
   .preview-card,
   .dataset-card,
@@ -506,38 +677,13 @@ input[type="number"] {
   .tutorial-card,
   .control-card,
   .recording-card,
-  .scpi-card {
-    grid-column: auto;
-  }
+  .scpi-card { grid-column: auto; }
 
-  .hero {
-    flex-direction: column;
-  }
-
-  .hero-meta {
-    min-width: 0;
-  }
+  .hero { flex-direction: column; align-items: flex-start; }
+  .hero-meta { min-width: 0; }
 }
-
-@media (max-width: 720px) {
-  .shell {
-    width: min(100% - 20px, 1400px);
-    padding-top: 14px;
-  }
-
-  .hero,
-  .card {
-    padding: 18px;
-    border-radius: 20px;
-  }
-
-  .dataset-row {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-meta {
-    grid-template-columns: 1fr;
-  }
+@media (max-width: 640px) {
+  .hero-meta { grid-template-columns: 1fr; }
 }
 
 </style>
@@ -719,7 +865,7 @@ input[type="number"] {
             <article>
               <h3>1. 启动机器</h3>
               <p>先确认实验室主机 Dell Precision 3660 已上电，网线正常，等它回到内网。若你在本机上远程操作，先确认能通 <code>203-precision3660</code> 或 <code>10.24.32.98</code>。</p>
-              <p>远程登录建议直接用 <code>ssh a203@203-precision3660</code>。若只在内网可达，也可以用 <code>ssh <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="41207371720170716f73756f72736f7879">[email&#160;protected]</a></code>。进机后先看 <code>python3 --version</code> 和 webui 服务是否在 <code>:8000</code>。</p>
+              <p>远程登录建议直接用 <code>ssh a203@203-precision3660</code>。若只在内网可达，也可以用 <code>ssh <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="e485d6d4d7a4d5d4cad6d0cad7d6cadddc">[email&#160;protected]</a></code>。进机后先看 <code>python3 --version</code> 和 webui 服务是否在 <code>:8000</code>。</p>
             </article>
             <article>
               <h3>2. 基础接线</h3>
@@ -781,106 +927,6 @@ input[type="number"] {
     </div>
 
     <aside class="toast" id="toast"></aside>
-    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
-
-(function () {
-  const startedAt = Date.now();
-  const mockState = {
-    updated_at: new Date().toISOString(),
-    control: { function: "VOLT", range: 2, zero_check: false, zero_correct: true },
-    daq: { sample_rate_hz: 50000, live_rms: 0.04, live_peak: 0.12, display_window_s: 1.0 },
-    recording: { active: false, label: "baseline", sample_count: 0, last_dataset_id: "ds_demo_01" },
-    scpi_port: "COM3 @ 9600/8N1",
-    scpi_log: [
-      { ok: true, port: "COM3", command: "*IDN?", response: "KEITHLEY INSTRUMENTS INC.,MODEL 6514,4691930,A12 /A02" }
-    ],
-    datasets: [
-      { id: "ds_demo_01", label: "baseline", created_at: new Date(startedAt - 4*60*1000).toISOString(), sample_count: 250000, duration_s: 5.0 },
-      { id: "ds_demo_02", label: "tap-test", created_at: new Date(startedAt - 12*60*1000).toISOString(), sample_count: 100000, duration_s: 2.0 }
-    ]
-  };
-  function buildPreview(label) {
-    const xs=[], ys=[];
-    for (let i=0;i<400;i++){ const t=i/400; xs.push(t); ys.push(0.6*Math.sin(2*Math.PI*6*t)+0.25*Math.sin(2*Math.PI*17*t+1.1)+0.05*(Math.random()-0.5)); }
-    return { label, time_s: xs, value: ys };
-  }
-  const realFetch = window.fetch.bind(window);
-  window.fetch = async function (input, init) {
-    const url = typeof input === "string" ? input : input.url;
-    if (!url.startsWith("/api/")) return realFetch(input, init);
-    const respond = (b) => new Response(JSON.stringify(b), { status: 200, headers: {"Content-Type":"application/json"} });
-    if (url === "/api/state") return respond(mockState);
-    if (url === "/api/data/list") return respond({ items: mockState.datasets });
-    const m = url.match(/^\/api\/data\/([^/]+)\/preview$/);
-    if (m) { const d = mockState.datasets.find(x=>x.id===m[1]); return respond(buildPreview(d?d.label:m[1])); }
-    if (url.startsWith("/api/control/")) {
-      const body = init && init.body ? JSON.parse(init.body) : {};
-      if (url.endsWith("/function")) mockState.control.function = body.func;
-      if (url.endsWith("/range")) mockState.control.range = body.range;
-      if (url.endsWith("/zero-check")) mockState.control.zero_check = !!body.on;
-      if (url.endsWith("/zero-correct")) mockState.control.zero_correct = !!body.on;
-      if (url.endsWith("/scpi/send")) {
-        const cmd = body.command || ""; let resp = "ok";
-        if (cmd === "*IDN?") resp = "KEITHLEY INSTRUMENTS INC.,MODEL 6514,4691930,A12 /A02";
-        else if (cmd === "FUNC?") resp = '"VOLT"';
-        else if (cmd === "RANG?") resp = String(mockState.control.range);
-        else if (cmd === "READ?") resp = (Math.random()*0.1).toExponential(4) + ",+0.0E+00";
-        const entry = { ok: true, port: "COM3", command: cmd, response: resp };
-        mockState.scpi_log = [entry, ...(mockState.scpi_log || [])].slice(0, 20);
-        pushState();
-        return respond({ ok: true, entry, state: mockState });
-      }
-      mockState.updated_at = new Date().toISOString(); pushState();
-      return respond({ ok: true });
-    }
-    if (url === "/api/recording/start") {
-      const body = init && init.body ? JSON.parse(init.body) : {};
-      mockState.recording.active = true; mockState.recording.label = body.label || "baseline";
-      mockState.recording.sample_count = 0; pushState(); return respond({ ok: true });
-    }
-    if (url === "/api/recording/stop") {
-      const id = "ds_" + Math.random().toString(16).slice(2,8);
-      const ds = { id, label: mockState.recording.label, created_at: new Date().toISOString(), sample_count: mockState.recording.sample_count || 50000, duration_s: 1.0 };
-      mockState.datasets = [ds, ...mockState.datasets]; mockState.recording.active = false; mockState.recording.last_dataset_id = id;
-      pushState(); return respond({ dataset: ds });
-    }
-    return respond({ ok: true });
-  };
-  const streamListeners = new Set(); const stateListeners = new Set();
-  function pushState() { const p = JSON.stringify(mockState); stateListeners.forEach(ws => ws._emit("message", { data: p })); }
-  class FakeWS {
-    constructor(url) {
-      this.url = url; this.readyState = 0;
-      this._handlers = { open:[], message:[], close:[], error:[] };
-      setTimeout(() => {
-        this.readyState = 1; this._emit("open", {});
-        if (url.endsWith("/ws/state")) { stateListeners.add(this); this._emit("message", { data: JSON.stringify(mockState) }); }
-        if (url.endsWith("/ws/stream")) streamListeners.add(this);
-      }, 60);
-    }
-    addEventListener(t, fn) { (this._handlers[t]||[]).push(fn); }
-    removeEventListener(t, fn) { if (this._handlers[t]) this._handlers[t] = this._handlers[t].filter(h=>h!==fn); }
-    _emit(t, e) { (this._handlers[t]||[]).forEach(fn=>fn(e)); }
-    send() {} close() { streamListeners.delete(this); stateListeners.delete(this); this.readyState = 3; this._emit("close", {}); }
-  }
-  window.WebSocket = FakeWS;
-  const N = 600;
-  setInterval(() => {
-    const xs=[], ys=[]; const t0 = (Date.now()-startedAt)/1000; let rms=0, peak=0;
-    for (let i=0;i<N;i++){ const t=t0+i/N; xs.push(i/N);
-      const v = 0.6*Math.sin(2*Math.PI*8*t)+0.25*Math.sin(2*Math.PI*21*t+0.7)+0.04*(Math.random()-0.5);
-      ys.push(v); rms+=v*v; if (Math.abs(v)>peak) peak=Math.abs(v);
-    }
-    rms=Math.sqrt(rms/N); mockState.daq.live_rms=rms; mockState.daq.live_peak=peak;
-    mockState.updated_at = new Date().toISOString();
-    if (mockState.recording.active) mockState.recording.sample_count += N;
-    const frame = JSON.stringify({ time_s: xs, value: ys });
-    streamListeners.forEach(ws => ws._emit("message", { data: frame }));
-  }, 120);
-  setInterval(pushState, 1000);
-})();
-
-</script>
 <script>
 const state = {
   appState: null,
