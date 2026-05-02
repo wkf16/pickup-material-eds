@@ -1,9 +1,16 @@
 # WebUI 性能估计与采样率调参指南
 
 > 适用范围: 当前 `simulated-webui-mvp` 这一版（合成信号 + ring buffer + 10 fps WebSocket 流）  
-> 硬件: 实验机 Dell Precision 3660（i7/i9 + 32GB RAM 量级）+ USB-6002 DAQ + Keithley 6514  
+> 硬件: 实验机 Dell Precision 3660 (Manjaro Linux) + RTX 4070 + USB-6002 DAQ + Keithley 6514  
 > 客户端: 浏览器（Chrome/Safari）通过 LAN 访问 `http://10.24.32.98`  
 > 更新日期: 2026-05-03
+
+> **TODO** — CPU / RAM 实测数据待补。机器在线时跑下面两条贴回来：
+> ```bash
+> ssh lab4070 'lscpu | grep -E "Model name|^CPU\(s\)|Thread|Socket|MHz"'
+> ssh lab4070 'free -h | head -2'
+> ```
+> 目前所有内存预算和 CPU 占比是**理论估算 + 旧 dmesg 里看到的 KVM 活动**反推（提示该机至少有 i5/i7 级别 CPU 与 ≥ 16 GB RAM，足以宿主多个 VM）。Precision 3660 出厂典型配置区间是 12 代 Intel i5/i7/i9 + 16/32/64 GB DDR5。
 
 ---
 
