@@ -650,6 +650,46 @@ input[type="number"]:focus {
   line-height: 1.7;
 }
 
+/* Reference tables inside tutorial cards */
+.tutorial-body table.scpi-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+.tutorial-body table.scpi-table th,
+.tutorial-body table.scpi-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.5;
+}
+.tutorial-body table.scpi-table th {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--line-strong);
+}
+.tutorial-body table.scpi-table tr:last-child td { border-bottom: none; }
+.tutorial-body table.scpi-table td code {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.tutorial-body table.scpi-table td.col-status {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.tutorial-body table.scpi-table td.col-status.is-button { color: var(--primary); }
+.tutorial-body table.scpi-table td.col-status.is-todo   { color: var(--warning); }
+
 .tutorial-body h3 .article-tag {
   display: inline-flex;
   align-items: center;
@@ -983,68 +1023,117 @@ input[type="number"]:focus {
             <article>
               <h3>8. 后端 API 接口落位 <span class="article-tag">phase 2</span></h3>
               <p>WebUI ↔ FastAPI ↔ 6514/DAQ 的接口契约：</p>
-              <ul class="contract-list">
-                <li><code>GET /api/state</code> 当前整机状态</li>
-                <li><code>POST /api/control/{function,range,zero-check,zero-correct,scpi/send}</code></li>
-                <li><code>POST /api/recording/{start,stop}</code> 录制生命周期</li>
-                <li><code>GET /api/data/*</code> 列表/预览/下载</li>
-                <li><code>WS /ws/{stream,state}</code> 波形流 + 状态推送</li>
-                <li><code>WS /ws/snapshot</code> 占位</li>
-              </ul>
+              <table class="scpi-table">
+                <thead><tr><th>端点</th><th>说明</th></tr></thead>
+                <tbody>
+                  <tr><td><code>GET /api/state</code></td><td>当前整机状态</td></tr>
+                  <tr><td><code>POST /api/control/function</code></td><td>切换功能</td></tr>
+                  <tr><td><code>POST /api/control/range</code></td><td>设置量程</td></tr>
+                  <tr><td><code>POST /api/control/zero-check</code></td><td>Zero Check 开关</td></tr>
+                  <tr><td><code>POST /api/control/zero-correct</code></td><td>Zero Correct 触发</td></tr>
+                  <tr><td><code>POST /api/control/scpi/send</code></td><td>SCPI 直通（当前桥到真机）</td></tr>
+                  <tr><td><code>POST /api/recording/start</code></td><td>开始录制</td></tr>
+                  <tr><td><code>POST /api/recording/stop</code></td><td>停止录制</td></tr>
+                  <tr><td><code>GET /api/data/list</code></td><td>历史录制列表</td></tr>
+                  <tr><td><code>GET /api/data/{id}/preview</code></td><td>波形预览数据</td></tr>
+                  <tr><td><code>GET /api/data/{id}/download</code></td><td>下载原始 npz</td></tr>
+                  <tr><td><code>WS /ws/stream</code></td><td>滚动波形流</td></tr>
+                  <tr><td><code>WS /ws/state</code></td><td>状态变更推送</td></tr>
+                  <tr><td><code>WS /ws/snapshot</code></td><td>占位，待真实触发</td></tr>
+                </tbody>
+              </table>
             </article>
             <article>
               <h3>9. SCPI · 通用 + 测量 + 调零 <span class="article-tag">实测可用</span></h3>
-              <p>真机全识别。✅ = UI 快速按钮已暴露；📝 = 控制台手输。</p>
-              <ul class="contract-list">
-                <li>✅ <code>*IDN?</code>　识别仪器</li>
-                <li>✅ <code>*RST</code>　恢复 GPIB 默认</li>
-                <li>📝 <code>*CLS</code> · <code>*ESR?</code>　清/查状态</li>
-                <li>📝 <code>FUNC "VOLT"|"CURR"|"RES"|"CHAR"</code>　切功能</li>
-                <li>✅ <code>FUNC?</code>　查功能</li>
-                <li>📝 <code>VOLT:RANG &lt;n&gt;</code>　设量程</li>
-                <li>✅ <code>VOLT:RANG?</code>　查量程（必须带 FUNC 前缀）</li>
-                <li>✅ <code>VOLT:RANG:AUTO ON</code>　自动量程</li>
-                <li>✅ <code>SYST:ZCH ON|OFF</code>　Zero Check</li>
-                <li>✅ <code>SYST:ZCOR ON</code>　Zero Correct</li>
-                <li>📝 <code>SYST:ZCH?</code> · <code>SYST:ZCOR?</code>　查状态</li>
-                <li>📝 <code>SYST:AZER ON|OFF</code>　Auto Zero（关掉提速）</li>
-                <li>✅ <code>READ?</code>　触发并读一笔</li>
-              </ul>
+              <p>真机全部识别。"按钮"列表示该命令是否在 SCPI 控制台下方有快速按钮。</p>
+              <table class="scpi-table">
+                <thead><tr><th>命令</th><th>说明</th><th>按钮</th></tr></thead>
+                <tbody>
+                  <tr><td><code>*IDN?</code></td><td>识别仪器与序列号</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>*RST</code></td><td>恢复 GPIB 默认</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>*CLS</code></td><td>清状态寄存器</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>*ESR?</code></td><td>查事件状态寄存器</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>FUNC?</code></td><td>查当前功能</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>FUNC "VOLT"</code></td><td>切到电压</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>FUNC "CURR"</code></td><td>切到电流</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>FUNC "RES"</code></td><td>切到电阻</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>FUNC "CHAR"</code></td><td>切到电荷</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>VOLT:RANG &lt;n&gt;</code></td><td>设量程（按 FUNC 改前缀）</td><td class="col-status">手输</td></tr>
+                  <tr><td><code>VOLT:RANG?</code></td><td>查量程（必须带 FUNC 前缀）</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>CURR:RANG?</code></td><td>查电流量程</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>VOLT:RANG:AUTO ON</code></td><td>自动量程开</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>VOLT:RANG:AUTO OFF</code></td><td>自动量程关</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>SYST:ZCH ON</code></td><td>Zero Check 开</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>SYST:ZCH OFF</code></td><td>Zero Check 关</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>SYST:ZCH?</code></td><td>查 ZCH 状态</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>SYST:ZCOR ON</code></td><td>触发零点校准</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>SYST:ZCOR?</code></td><td>查 ZCOR 状态</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>SYST:AZER OFF</code></td><td>Auto Zero 关（提速）</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>SYST:AZER?</code></td><td>查 Auto Zero 状态</td><td class="col-status">手输</td></tr>
+                  <tr><td><code>READ?</code></td><td>触发并读一笔（三段值）</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>:INIT</code></td><td>仅触发不取数据</td><td class="col-status is-button">有</td></tr>
+                </tbody>
+              </table>
             </article>
             <article>
-              <h3>10. SCPI · 速率 / 滤波 / 显示 <span class="article-tag">实测可用 · 待暴露</span></h3>
+              <h3>10. SCPI · 速率 / 滤波 / 显示 <span class="article-tag">待暴露</span></h3>
               <p>真机都识别，UI 暂未做按钮，控制台手输即可。完整后端会把这些接进控制卡片。</p>
-              <ul class="contract-list">
-                <li><code>VOLT:NPLC &lt;n&gt;</code>　集成时间 0.01-10 PLC（噪声 vs 速度）</li>
-                <li><code>CURR:NPLC</code> / <code>RES:NPLC</code> / <code>CHAR:NPLC</code>　各功能独立</li>
-                <li><code>DISP:DIG &lt;n&gt;</code>　显示位数 4-7（默认 6）</li>
-                <li><code>MED:STAT ON|OFF</code> + <code>MED:RANK 1-5</code>　中位数滤波</li>
-                <li><code>AVER:STAT ON|OFF</code> + <code>AVER:COUN 1-100</code>　数字滤波</li>
-                <li><code>AVER:TCON MOV|REP</code>　移动平均 / 重复</li>
-                <li><code>CALC2:NULL:STAT ON</code>　REL（基线相减）</li>
-              </ul>
+              <table class="scpi-table">
+                <thead><tr><th>命令</th><th>说明</th></tr></thead>
+                <tbody>
+                  <tr><td><code>VOLT:NPLC &lt;n&gt;</code></td><td>集成时间 0.01–10 PLC（噪声 vs 速度）</td></tr>
+                  <tr><td><code>CURR:NPLC</code> / <code>RES:NPLC</code> / <code>CHAR:NPLC</code></td><td>各功能独立设置</td></tr>
+                  <tr><td><code>VOLT:NPLC?</code></td><td>查 NPLC（默认 5.00）</td></tr>
+                  <tr><td><code>DISP:DIG &lt;n&gt;</code></td><td>显示位数 4–7（默认 6）</td></tr>
+                  <tr><td><code>MED:STAT ON|OFF</code></td><td>中位数滤波开关</td></tr>
+                  <tr><td><code>MED:RANK 1-5</code></td><td>中位数滤波秩</td></tr>
+                  <tr><td><code>AVER:STAT ON|OFF</code></td><td>数字滤波开关</td></tr>
+                  <tr><td><code>AVER:COUN 1-100</code></td><td>数字滤波平均次数</td></tr>
+                  <tr><td><code>AVER:TCON MOV|REP</code></td><td>移动平均 / 重复</td></tr>
+                  <tr><td><code>CALC2:NULL:STAT ON</code></td><td>REL（基线相减）</td></tr>
+                </tbody>
+              </table>
             </article>
             <article>
               <h3>11. SCPI · Buffer / Limit / Math <span class="article-tag">留给完整后端</span></h3>
-              <p>这一组与 WebUI 现有 ring buffer / 录制 / 后处理重叠。建议在 WebUI 侧做，不在仪器侧（更灵活）。</p>
-              <ul class="contract-list">
-                <li><strong>Buffer</strong>　<code>TRAC:CLE</code>、<code>TRAC:POIN &lt;1-2500&gt;</code>、<code>TRAC:FEED SENS</code>、<code>TRAC:DATA?</code>、<code>FORM:ELEM READ,TIME,STAT</code></li>
-                <li><strong>Buffer 统计</strong>　<code>CALC3:FORM MIN|MAX|MEAN|SDEV|PKPK</code> + <code>CALC3:DATA?</code></li>
-                <li><strong>Limit</strong>　<code>CALC2:LIM:STAT</code>、<code>CALC2:LIM:LOW/UPP</code>、<code>CALC2:LIM:FAIL?</code>（同 LIMit2）</li>
-                <li><strong>Math</strong>　<code>CALC:FORM MXB|PERC</code>、<code>CALC:KMAT:MMF/MBF/MUN/PER</code>、<code>CALC:STAT ON</code>、<code>CALC:DATA?</code></li>
-                <li><strong>Guard</strong>　<code>VOLT:GUAR ON</code> / <code>RES:GUAR ON</code>　高阻抗驱动屏蔽</li>
-              </ul>
+              <p>这一组与 WebUI 的 ring buffer / 录制 / 后处理重叠。建议在 WebUI 侧做，不在仪器侧（更灵活）。</p>
+              <table class="scpi-table">
+                <thead><tr><th>类别</th><th>命令</th><th>说明</th></tr></thead>
+                <tbody>
+                  <tr><td>Buffer</td><td><code>TRAC:CLE</code></td><td>清空 buffer</td></tr>
+                  <tr><td>Buffer</td><td><code>TRAC:POIN &lt;1-2500&gt;</code></td><td>设容量</td></tr>
+                  <tr><td>Buffer</td><td><code>TRAC:FEED SENS</code></td><td>数据源</td></tr>
+                  <tr><td>Buffer</td><td><code>TRAC:DATA?</code></td><td>读全部</td></tr>
+                  <tr><td>Buffer</td><td><code>FORM:ELEM READ,TIME,STAT</code></td><td>数据元素</td></tr>
+                  <tr><td>统计</td><td><code>CALC3:FORM MIN|MAX|MEAN|SDEV|PKPK</code></td><td>选统计量</td></tr>
+                  <tr><td>统计</td><td><code>CALC3:DATA?</code></td><td>读统计量</td></tr>
+                  <tr><td>Limit</td><td><code>CALC2:LIM:STAT</code></td><td>Limit 1 开关</td></tr>
+                  <tr><td>Limit</td><td><code>CALC2:LIM:LOW/UPP &lt;n&gt;</code></td><td>Limit 1 上下界</td></tr>
+                  <tr><td>Limit</td><td><code>CALC2:LIM:FAIL?</code></td><td>Limit 1 结果</td></tr>
+                  <tr><td>Limit</td><td><code>CALC2:LIM2:*</code></td><td>Limit 2 同上</td></tr>
+                  <tr><td>Math</td><td><code>CALC:FORM MXB|PERC</code></td><td>数学功能选择</td></tr>
+                  <tr><td>Math</td><td><code>CALC:KMAT:MMF/MBF/MUN</code></td><td>mX+b 的 m/b/单位</td></tr>
+                  <tr><td>Math</td><td><code>CALC:KMAT:PER &lt;n&gt;</code></td><td>Percent 参考值</td></tr>
+                  <tr><td>Math</td><td><code>CALC:STAT ON</code></td><td>开启数学</td></tr>
+                  <tr><td>Math</td><td><code>CALC:DATA?</code></td><td>读结果</td></tr>
+                  <tr><td>Guard</td><td><code>VOLT:GUAR ON</code></td><td>电压驱动屏蔽</td></tr>
+                  <tr><td>Guard</td><td><code>RES:GUAR ON</code></td><td>电阻驱动屏蔽</td></tr>
+                </tbody>
+              </table>
             </article>
             <article>
               <h3>12. 完整后端实施优先级 <span class="article-tag">roadmap</span></h3>
               <p>下次写真机 BenchService 时按这个顺序补，性价比最高（详见 <code>docs/dev-real-hardware.md §5.6</code>）：</p>
-              <ol class="contract-list">
-                <li><strong>Auto range + NPLC</strong>　用户最常调的两个旋钮</li>
-                <li><strong>Filter</strong>（<code>AVER:*</code>、<code>MED:*</code>）　噪声测试场景必需</li>
-                <li><strong><code>:INIT</code> + <code>:READ?</code> 拆开</strong>　让 WebUI 触发与读取解耦</li>
-                <li><strong>Buffer</strong>（<code>TRAC:*</code>）　仅当要替换 ring buffer 才碰</li>
-                <li><strong>Math / Limit</strong>　仪器端 vs WebUI 后处理是个权衡，多数场景后者更灵活</li>
-              </ol>
+              <table class="scpi-table">
+                <thead><tr><th>顺序</th><th>模块</th><th>命令族</th><th>理由</th></tr></thead>
+                <tbody>
+                  <tr><td>1</td><td>Auto range + NPLC</td><td><code>*:RANG:AUTO</code> · <code>*:NPLC</code></td><td>用户最常调的两个旋钮</td></tr>
+                  <tr><td>2</td><td>Filter</td><td><code>AVER:*</code> · <code>MED:*</code></td><td>噪声测试场景必需</td></tr>
+                  <tr><td>3</td><td>触发解耦</td><td><code>:INIT</code> + <code>:READ?</code> 拆开</td><td>让 WebUI 触发与读取分离</td></tr>
+                  <tr><td>4</td><td>Buffer</td><td><code>TRAC:*</code></td><td>仅当要替换 ring buffer 才碰</td></tr>
+                  <tr><td>5</td><td>Math / Limit</td><td><code>CALC:*</code> · <code>CALC2:LIM:*</code></td><td>仪器端 vs WebUI 后处理，多数场景后者更灵活</td></tr>
+                </tbody>
+              </table>
             </article>
           </div>
         </section>
