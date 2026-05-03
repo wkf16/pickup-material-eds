@@ -250,6 +250,30 @@ body[data-active-tab="ao"]     [data-tab]:not([data-tab~="ao"])     { display: n
 .scope-controls label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-muted); }
 .scope-controls select { padding: 4px 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; color: var(--ink); }
 
+/* Recording row at the very top of Live tab */
+.recording-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.recording-row label { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--ink-muted); }
+.recording-row label input, .recording-row label select {
+  padding: 6px 10px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 6px; color: var(--ink); font-size: 13px;
+}
+.recording-row label input { min-width: 120px; }
+.recording-row button { padding: 8px 16px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; font-weight: 600; }
+.recording-row button.primary { background: var(--accent); color: #0c1f10; border-color: var(--accent); }
+.recording-row button.secondary { color: #ff6b6b; border-color: #ff6b6b66; }
+.rec-led {
+  width: 10px; height: 10px; border-radius: 50%; background: #555;
+  transition: background 0.2s;
+}
+.rec-led.active { background: #ff5252; box-shadow: 0 0 10px #ff5252; animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity: 0.4; } }
+.rec-state, .rec-meta { font-size: 12px; color: var(--ink-muted); }
+
 /* ---------------- Grid ---------------- */
 .grid {
   display: grid;
@@ -871,12 +895,37 @@ input[type="number"]:focus {
       </header>
       <nav class="tabs" id="tabs">
         <button data-tab-btn="live" class="active">实时</button>
-        <button data-tab-btn="record">录制</button>
         <button data-tab-btn="scpi">6514 / SCPI</button>
         <button data-tab-btn="ao">输出 AO</button>
       </nav>
 
       <main class="grid">
+        <section class="card recording-card" data-tab="live" style="grid-column: 1 / -1;">
+          <div class="recording-row">
+            <span class="rec-led" id="recLed" aria-label="recording status"></span>
+            <strong>录制</strong>
+            <label>
+              <span>标签</span>
+              <input id="recordingLabel" type="text" value="baseline" maxlength="64" />
+            </label>
+            <label>
+              <span>时长 (秒)</span>
+              <input id="recordingDuration" type="number" min="0.5" step="0.5" value="5" />
+            </label>
+            <label>
+              <span>格式</span>
+              <select id="recordingFormat">
+                <option value="csv" selected>.csv</option>
+                <option value="npz">.npz</option>
+              </select>
+            </label>
+            <button class="primary" id="startRecordingBtn">▶ 开始</button>
+            <button class="secondary" id="stopRecordingBtn">■ 停止</button>
+            <span class="rec-state" id="recordingStateText">idle</span>
+            <span class="rec-meta">样本: <strong id="recordingSamples">0</strong> · 上次: <strong id="lastDatasetId">-</strong></span>
+          </div>
+        </section>
+
         <section class="card control-card" data-tab="live">
           <div class="card-head">
             <h2>采集控制</h2>
@@ -1010,50 +1059,27 @@ input[type="number"]:focus {
             </label>
           </div>
           <canvas id="waveCanvas" width="1920" height="540"></canvas>
-        </section>
-
-        <section class="card recording-card" data-tab="live">
-          <div class="card-head">
-            <h2>录制</h2>
-            <span id="recordingStateText">idle</span>
-          </div>
-          <div class="form-grid">
+          <div class="scope-controls" style="margin-top:14px;">
             <label>
-              <span>Label</span>
-              <input id="recordingLabel" type="text" value="baseline" maxlength="64" />
-            </label>
-            <label>
-              <span>Duration (s)</span>
-              <input id="recordingDuration" type="number" min="0.5" step="0.5" value="5" />
-            </label>
-            <label>
-              <span>Format</span>
-              <select id="recordingFormat">
-                <option value="npz" selected>.npz (NumPy)</option>
-                <option value="csv">.csv (Excel-friendly)</option>
+              <span>滤波</span>
+              <select id="filterMode">
+                <option value="off">关</option>
+                <option value="lp" selected>巴特沃斯 4 阶 LP</option>
               </select>
             </label>
+            <label>
+              <span>截止 (Hz)</span>
+              <input id="filterCutoff" type="number" value="50" min="0.1" max="25000" step="1" style="width:90px;" />
+            </label>
+            <label>
+              <span>状态</span>
+              <span id="filterInfo" style="font-size:12px;color:var(--ink-muted);padding:4px 0;">—</span>
+            </label>
           </div>
-          <div class="action-row">
-            <button class="primary" id="startRecordingBtn">开始录制</button>
-            <button class="secondary" id="stopRecordingBtn">停止录制</button>
-          </div>
-          <div class="stats slim">
-            <article>
-              <span>Samples</span>
-              <strong id="recordingSamples">0</strong>
-            </article>
-            <article>
-              <span>Last Dataset</span>
-              <strong id="lastDatasetId">-</strong>
-            </article>
-          </div>
-          <p class="hint">
-            当前是模拟源。真实链路接入时，保留这些 REST/WS 路径，替换后端 service 即可。
-          </p>
+          <canvas id="filterCanvas" width="1920" height="320"></canvas>
         </section>
 
-        <section class="card dataset-card" data-tab="record">
+        <section class="card dataset-card" data-tab="live">
           <div class="card-head">
             <h2>历史录制</h2>
             <span id="datasetCount">0 items</span>
@@ -1061,7 +1087,7 @@ input[type="number"]:focus {
           <div class="dataset-list" id="datasetList"></div>
         </section>
 
-        <section class="card preview-card" data-tab="record">
+        <section class="card preview-card" data-tab="live">
           <div class="card-head">
             <h2>数据预览</h2>
             <span id="previewLabel">未选择</span>
@@ -1386,6 +1412,11 @@ const el = {
   previewCanvas: document.getElementById("previewCanvas"),
   yScaleMode: document.getElementById("yScaleMode"),
   windowSec: document.getElementById("windowSec"),
+  filterCanvas: document.getElementById("filterCanvas"),
+  filterMode: document.getElementById("filterMode"),
+  filterCutoff: document.getElementById("filterCutoff"),
+  filterInfo: document.getElementById("filterInfo"),
+  recLed: document.getElementById("recLed"),
   // Phase 2 additions
   bridgeDot: document.getElementById("bridgeDot"),
   bridgeText: document.getElementById("bridgeText"),
@@ -1469,8 +1500,11 @@ function renderState(appState) {
   el.windowStat.textContent = `${formatNumber(appState.daq.display_window_s, 1)} s`;
   el.scpiPortText.textContent = appState.scpi_port || "COM?-";
   el.recordingStateText.textContent = appState.recording.active
-    ? `recording: ${appState.recording.label}`
-    : "idle";
+    ? `录制中: ${appState.recording.label}`
+    : "空闲";
+  if (el.recLed) {
+    el.recLed.classList.toggle("active", !!appState.recording.active);
+  }
   el.recordingSamples.textContent = String(appState.recording.sample_count);
   el.lastDatasetId.textContent = appState.recording.last_dataset_id || "-";
   el.zeroCheckToggle.checked = appState.control.zero_check;
@@ -1736,11 +1770,65 @@ function drawSeries(canvas, xs, ys, opts = {}) {
   drawScope(canvas, xs, ys, opts);
 }
 
+// ─── Butterworth 4th-order lowpass (two cascaded biquads) ──────────────
+//
+// Stateless across frames — re-filters the entire frame every time. At
+// 2000 pts × 2 sections × 10 fps that's ~40 k mul-add/s, trivial.
+
+function butter4LP(samples, fc, fs) {
+  const n = samples.length;
+  if (!n || fc <= 0 || fc >= fs / 2) return samples;
+  const out = new Float64Array(n);
+  // Pre-warp via tan(omega/2)
+  const omega = Math.PI * fc / fs;
+  const K = Math.tan(omega);
+  const KK = K * K;
+  // 4th-order Butterworth = two 2nd-order sections, Q1 / Q2 from poles
+  const Qs = [1 / (2 * Math.sin(Math.PI / 8)),       // Q1 ≈ 1.307
+              1 / (2 * Math.sin(3 * Math.PI / 8))];  // Q2 ≈ 0.541
+  for (let i = 0; i < n; i++) out[i] = samples[i];
+  for (const Q of Qs) {
+    const norm = 1 / (1 + K / Q + KK);
+    const b0 = KK * norm;
+    const b1 = 2 * b0;
+    const b2 = b0;
+    const a1 = 2 * (KK - 1) * norm;
+    const a2 = (1 - K / Q + KK) * norm;
+    let z1 = 0, z2 = 0;
+    for (let i = 0; i < n; i++) {
+      const x = out[i];
+      const y = b0 * x + z1;
+      z1 = b1 * x - a1 * y + z2;
+      z2 = b2 * x - a2 * y;
+      out[i] = y;
+    }
+  }
+  return out;
+}
+
 function renderLiveFrame(frame) {
   state.liveFrame = frame;
   el.waveLabel.textContent = `${frame.value.length} pts · ${frame.sample_rate_hz} Hz`;
   const yMode = (el.yScaleMode && el.yScaleMode.value) || "auto";
   drawScope(el.waveCanvas, frame.time_s, frame.value, { accent: "#7effb2", yMode });
+
+  // Filter scope (below)
+  if (!el.filterCanvas) return;
+  const mode = el.filterMode ? el.filterMode.value : "off";
+  if (mode === "off" || frame.value.length === 0) {
+    drawScope(el.filterCanvas, [], [], { accent: "#6dd2ff", yMode });
+    if (el.filterInfo) el.filterInfo.textContent = mode === "off" ? "(关)" : "(无数据)";
+    return;
+  }
+  const fs = frame.sample_rate_hz || 1000;
+  const fc = Math.max(0.1, Number(el.filterCutoff && el.filterCutoff.value) || 50);
+  // Clamp cutoff below Nyquist with margin
+  const fcSafe = Math.min(fc, fs * 0.45);
+  const filtered = butter4LP(frame.value, fcSafe, fs);
+  drawScope(el.filterCanvas, frame.time_s, filtered, { accent: "#6dd2ff", yMode });
+  if (el.filterInfo) {
+    el.filterInfo.textContent = `LP ${fcSafe.toFixed(fcSafe >= 10 ? 0 : 1)} Hz · fs ${fs} Hz`;
+  }
 }
 
 async function previewDataset(datasetId) {
@@ -1787,20 +1875,42 @@ function bindControls() {
   });
 
   el.zeroCheckToggle.addEventListener("change", async () => {
+    const requested = el.zeroCheckToggle.checked;
+    el.zeroCheckToggle.disabled = true;
     try {
-      await submitJSON("/api/control/zero-check", { on: el.zeroCheckToggle.checked });
-      showToast(`Zero Check -> ${el.zeroCheckToggle.checked ? "on" : "off"}`);
-    } catch (error) {
-      showToast(`切换失败: ${error.message}`, "error");
+      const r = await submitJSON("/api/control/zero-check", { on: requested });
+      const actual = r && r.state && r.state.control ? r.state.control.zero_check : requested;
+      el.zeroCheckToggle.checked = actual;
+      if (actual !== requested) {
+        showToast(`Zero Check 仪器拒绝；状态保持 ${actual ? "on" : "off"}`, "error");
+      } else {
+        showToast(`Zero Check -> ${actual ? "on" : "off"}`);
+      }
+    } catch (e) {
+      el.zeroCheckToggle.checked = !requested;  // revert visual
+      showToast(`Zero Check 失败: ${e.message}`, "error");
+    } finally {
+      el.zeroCheckToggle.disabled = false;
     }
   });
 
   el.zeroCorrectToggle.addEventListener("change", async () => {
+    const requested = el.zeroCorrectToggle.checked;
+    el.zeroCorrectToggle.disabled = true;
     try {
-      await submitJSON("/api/control/zero-correct", { on: el.zeroCorrectToggle.checked });
-      showToast(`Zero Correct -> ${el.zeroCorrectToggle.checked ? "on" : "off"}`);
-    } catch (error) {
-      showToast(`切换失败: ${error.message}`, "error");
+      const r = await submitJSON("/api/control/zero-correct", { on: requested });
+      const actual = r && r.state && r.state.control ? r.state.control.zero_correct : requested;
+      el.zeroCorrectToggle.checked = actual;
+      if (actual !== requested) {
+        showToast(`Zero Correct 仪器拒绝；状态保持 ${actual ? "on" : "off"}`, "error");
+      } else {
+        showToast(`Zero Correct -> ${actual ? "on" : "off"}`);
+      }
+    } catch (e) {
+      el.zeroCorrectToggle.checked = !requested;
+      showToast(`Zero Correct 失败: ${e.message}`, "error");
+    } finally {
+      el.zeroCorrectToggle.disabled = false;
     }
   });
 

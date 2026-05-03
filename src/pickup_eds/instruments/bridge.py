@@ -345,36 +345,70 @@ class RealBenchService:
         for q in stale:
             self._state_watchers.discard(q)
 
-    # ─── 6514 control toggles (route to SCPI) ──────────────────
+    # ─── 6514 control toggles (route to SCPI, then verify by readback) ─
+    #
+    # Every set is followed by a query so the UI reflects the real
+    # instrument state, not what we asked for. 6514 set commands return
+    # nothing; an "OK" from the proxy only means "no protocol error",
+    # not that the set actually took effect (e.g. RANG 0.2 in CURR mode
+    # is rejected silently). Without readback we'd display "On" while
+    # the device sat at "Off" — exactly the bug user flagged.
+
+    async def _readback_bool(self, query: str) -> bool | None:
+        r = await self._send_scpi_internal(query)
+        s = (r.response or "").strip()
+        if r.ok and s in {"0", "1"}:
+            return s == "1"
+        # Some 6514 firmware returns scientific form like "1.000E+0"
+        try:
+            return float(s) >= 0.5
+        except ValueError:
+            return None
 
     async def set_function(self, func: str) -> AppState:
-        # Standard SCPI for 6514 function: ":FUNC 'VOLT:DC'" etc.
-        # Simpler form "FUNC <name>" works on this firmware.
         scpi_alias = {"VOLT": "VOLT:DC", "CURR": "CURR:DC", "RES": "RES", "CHARGE": "CHAR"}.get(func, func)
         await self._send_scpi_internal(f'FUNC "{scpi_alias}"')
-        async with self._lock:
-            self._control = self._control.model_copy(update={"function": func})
+        # Verify
+        q = await self._send_scpi_internal("FUNC?")
+        actual_raw = (q.response or "").strip().strip('"').upper()
+        actual_func: str | None = None
+        if "VOLT" in actual_raw: actual_func = "VOLT"
+        elif "CURR" in actual_raw: actual_func = "CURR"
+        elif "RES" in actual_raw: actual_func = "RES"
+        elif "CHAR" in actual_raw: actual_func = "CHARGE"
+        if actual_func is not None:
+            async with self._lock:
+                self._control = self._control.model_copy(update={"function": actual_func})
         await self._broadcast_state()
         return await self.snapshot_state()
 
     async def set_range(self, range_value: float) -> AppState:
         await self._send_scpi_internal(f"RANG {range_value}")
-        async with self._lock:
-            self._control = self._control.model_copy(update={"range": range_value})
+        q = await self._send_scpi_internal("RANG?")
+        try:
+            actual = float((q.response or "").strip())
+            async with self._lock:
+                self._control = self._control.model_copy(update={"range": actual})
+        except (ValueError, TypeError):
+            pass  # leave state unchanged so UI doesn't lie
         await self._broadcast_state()
         return await self.snapshot_state()
 
     async def set_zero_check(self, on: bool) -> AppState:
         await self._send_scpi_internal(f"SYST:ZCH {'ON' if on else 'OFF'}")
-        async with self._lock:
-            self._control = self._control.model_copy(update={"zero_check": on})
+        actual = await self._readback_bool("SYST:ZCH?")
+        if actual is not None:
+            async with self._lock:
+                self._control = self._control.model_copy(update={"zero_check": actual})
         await self._broadcast_state()
         return await self.snapshot_state()
 
     async def set_zero_correct(self, on: bool) -> AppState:
         await self._send_scpi_internal(f"SYST:ZCOR {'ON' if on else 'OFF'}")
-        async with self._lock:
-            self._control = self._control.model_copy(update={"zero_correct": on})
+        actual = await self._readback_bool("SYST:ZCOR?")
+        if actual is not None:
+            async with self._lock:
+                self._control = self._control.model_copy(update={"zero_correct": actual})
         await self._broadcast_state()
         return await self.snapshot_state()
 
