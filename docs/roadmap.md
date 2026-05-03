@@ -1,8 +1,8 @@
 # 路线图与项目状态
 
 > **当前日期**:2026-05-03
-> **当前 Phase**:Phase 1 进行中(驱动 + 链路验证)
-> **下一动作**:见 §"Next actions" 末尾
+> **当前 Phase**:Phase 1 ✅ 完成 → Phase 2 进行中（WebUI 接真硬件，桥架构）
+> **下一动作**:见 §"Next actions" 末尾；详细设计见 [`phase2-design.md`](phase2-design.md)
 
 ## 设计哲学(2026-05-03 重排)
 
@@ -26,8 +26,9 @@ WebUI 本身就是这个项目最重要的实验工具。**先把工具做出来
 |---|---|---|---|
 | **Phase 0** | 项目骨架 + 文档基础 | ✅ 完成 | — |
 | **Phase 1** | Windows VM 中的 NI-DAQmx 驱动 + 端到端链路验证 | ✅ 完成（链路 + 4 个 smoke test 全过） | — |
-| **Phase 2** | WebUI MVP(实时显示 + 6514 控制 + 录制) | ⚪ 未启动 | Phase 1 |
-| **Phase 3** | 用 WebUI 跑实验 01 + ML 数据集采集 | ⚪ 未启动 | Phase 2 |
+| **Phase 2** | WebUI 接真硬件（Linux WebUI + VM DAQ daemon 桥架构） | 🟡 进行中（MVP 已合并，等待真硬件接入） | Phase 1 |
+| **Phase 2.5** | AO + AI 硬件同步触发 + 实验 01 chirp Bode 一键跑 | ⚪ 未启动 | Phase 2 |
+| **Phase 3** | ML 数据集采集 | ⚪ 未启动 | Phase 2.5 |
 | **Phase 4** | ML 训练 + 推理集成回 WebUI | ⚪ 未启动 | Phase 3 |
 
 ---
@@ -46,7 +47,7 @@ WebUI 本身就是这个项目最重要的实验工具。**先把工具做出来
 
 ---
 
-## Phase 1:驱动 + 端到端链路验证 🟡
+## Phase 1:驱动 + 端到端链路验证 ✅
 
 **目标**:Lab Linux 作为 **KVM 宿主机**,Windows VM 作为 **DAQ/串口来宾机**。在 Windows VM 里装好 NI-DAQmx,让 Python 能读 USB-6002 数据,6514 能 SCPI 通信,**两路数据从硬件流到 Python 都验证一次**。这一阶段不写 WebUI,只确保"裸的仪器层 ready"。
 
@@ -98,47 +99,82 @@ WebUI 本身就是这个项目最重要的实验工具。**先把工具做出来
 
 ---
 
-## Phase 2:WebUI MVP ⚪
+## Phase 2:WebUI 接真硬件 🟡
 
-**目标**:在 Lab Linux 上部署一个最小可用 Web 实验台。把 Phase 1 验证过的能力**包成 HTTP/WebSocket 接口**,加一个浏览器端可见的界面。
+**目标**:把 MVP（simulator-backed）改造成真硬件链路——`WebUI 在 Lab Linux :80` ↔ `DAQ daemon 在 Windows VM :8765`，两边用 WebSocket 二进制流过 virtio 桥。详细设计见 [`docs/phase2-design.md`](phase2-design.md)。
 
-### 2.1 后端核心(`src/pickup_eds/`)
-- [ ] `instruments/electrometer.py` ── 6514 SCPI 异步包装(基于 `pyserial-asyncio`)
-- [ ] `instruments/daq.py` ── USB-6002 nidaqmx 流采包装(后台 task,推 ring buffer)
-- [ ] `core/scope.py` ── 触发逻辑 + 显示降采样(50 kS/s → ~1 kS/s 给浏览器)
-- [ ] `core/recorder.py` ── 录制状态机(start/stop/label/duration)
-- [ ] `core/storage.py` ── Parquet 落盘 + SQLite 元数据
-- [ ] `api/main.py` ── FastAPI app + lifespan 管理硬件单例
-- [ ] `api/ws.py` ── WebSocket `/ws/stream`、`/ws/state`
-- [ ] `api/control.py` ── REST `/api/control/{function,range,zero-check,zero-correct}`
-- [ ] `api/recording.py` ── REST `/api/recording/{start,stop}`
-- [ ] `api/data.py` ── REST `/api/data/{list,download,preview}`
+### 2.0 已完成（codex/webui-wt 分支已合并到 main）
+- [x] FastAPI 后端骨架 + WebSocket `/ws/stream` `/ws/state`
+- [x] REST `/api/control/*` `/api/recording/*` `/api/data/*` 接口契约
+- [x] `SimulatedBenchService` 模拟数据源（Phase 2 期间作为 dev fallback 保留）
+- [x] `electrometer_serial.py` 真 6514 SCPI 桥（**Phase 2 改成走 daq daemon 而不是直连 `/dev/ttyUSB0`**）
+- [x] `core/storage.py` `.npz + SQLite` 落盘
+- [x] 前端 `index.html`（Preview v3 单文件，Alpine + uPlot）
+- [x] `deploy/pickup-eds-webui.service` + `scripts/deploy_webui.sh`（systemd，端口 80 sudo）
+- [x] 文档：`api-reference.md` `webui-mvp-delivery.md` `performance.md` `dev-real-hardware.md`
 
-### 2.2 前端单页(`src/pickup_eds/web/`)
-- [ ] `index.html` ── 三栏布局:控制 / 时域波形 / FFT 频谱
-- [ ] `scope.js` ── uPlot 实时绘图,WebSocket 客户端
-- [ ] `controls.js` ── Alpine.js 仪器控制 + 录制按钮
-- [ ] `style.css` ── 极简样式
+### 2.1 VM 侧：DAQ Daemon（新模块 `src/pickup_eds/daq_daemon/`）
+- [ ] `discovery.py` ── USB-6002 (`Dev1` 自动发现) + 6514 (枚举 PnP + `*IDN?` 探测)
+- [ ] `daq_worker.py` ── nidaqmx Task（专用线程，`read_into` 预分配 buf），二进制 ws push
+- [ ] `scpi_proxy.py` ── pyserial 单例 + 命令队列
+- [ ] `recovery.py` ── 启动时检查 nipalk / nidevldu / mxssvr，phantom 自动 detach/attach
+- [ ] `app.py` ── FastAPI :8765 入口，REST `/api/daq/*` `/api/scpi/*` + WS `/ws/raw_stream`
+- [ ] Windows 服务部署（NSSM 或 scheduled task at logon）
 
-### 2.3 部署最小化
-- [ ] `pyproject.toml` ── 列依赖
-- [ ] `uvicorn` 命令直接起服务,bind 0.0.0.0:8000
-- [ ] (Tailscale 已就位,内网+外网都能访问)
+### 2.2 Linux 侧：桥客户端 + 替换 simulator
+- [ ] `instruments/bridge.py` ── BridgeClient：ws 客户端 + 状态机 + 指数退避重连
+- [ ] `instruments/real_bench.py` ── RealBenchService（替换 SimulatedBenchService）
+- [ ] `api/main.py` ── 加 `--bridge ws://192.168.122.8:8765` flag，simulator 默认保留
+- [ ] `electrometer_serial.py` ── 改成调 daemon `/api/scpi/send`，不再读 `/dev/ttyUSB0`
+- [ ] 桥状态推送进 `/ws/state`：`{bridge: disconnected|reconnecting|idle|running|paused|error}`
 
-### 2.4 验证(就用这套测的 Step 0 当 Phase 2 验收)
-- [ ] 浏览器打开 `http://203-precision3660:8000`,见实时波形跳动
-- [ ] 点 "Function = VOLT, Range = 2V" → 6514 真的切了
-- [ ] 点 "Record 5s, label = baseline" → 磁盘出现 `data/recordings/baseline_<ts>.parquet`
-- [ ] WebSocket 拉断重连不崩
-- [ ] 后端单进程 RAM < 200 MB,CPU < 30% 持续
+### 2.3 前端 Tabs（重写 `index.html` 的布局）
+- [ ] **Tab 1 实时**：DAQ 配置（采样率/通道/端接/量程/fps/窗口）+ uPlot
+- [ ] **Run / Pause** 主按钮（Pause 冻结显示但 DAQ 继续）
+- [ ] **Single** 单帧抓拍按钮
+- [ ] **Stop ⊗** 右上角小图标（完全停 DAQ task）
+- [ ] **Tab 2 录制**：标签 + 时长 + 格式 + 是否同步记 6514（@ 1Hz）+ 历史列表
+- [ ] **Tab 3 6514 SCPI**：保留 MVP 现状，数据通路走 daemon
+- [ ] **Tab 4 输出 AO**：通道 + 模式（DC/Sine/Sweep-lin/Sweep-log/Chirp/File replay）+ Free run（HW sync 留 2.5）
+- [ ] 桥状态指示灯（右上角小灯 + RTT 显示）
+
+### 2.4 50 kHz 不崩
+- [ ] DAQ 读专用线程，event loop 只 touch ring buffer
+- [ ] ring buffer 用预分配 `numpy.float32` + 写指针环回，**满了覆盖最旧**
+- [ ] WS 二进制帧（`struct.pack` header + `float32`），不用 JSON 文本帧给样本流
+- [ ] 后端降采样到 720 点 / 帧后再下发浏览器
+- [ ] 录制写盘**只在 Linux 侧**（VM daemon 不写盘），桥拉数据，磁盘队列异步刷
+
+### 2.5 验收
+- [ ] 浏览器 `http://lab4070/` 见实时波形（默认 30 fps 滑动）
+- [ ] 桥状态指示灯随 VM 重启 / USB phantom 切换正确（disconnected → reconnecting → idle → running）
+- [ ] 50 kHz 单通道连续 60 秒，**0 overrun，前端不卡**（`SmokeTest 2` 已在 Phase 1 端到端跑过，Phase 2 验收要求 WebSocket + 后端共同跑）
+- [ ] Run / Pause / Stop / Single 行为符合设计
+- [ ] 切 `Function=VOLT, Range=2V` 后真 6514 状态变了（`*FUNC?` `*RANG?` 回读匹配）
+- [ ] 录 5s `baseline` → 落盘 `data/recordings/baseline_<ts>.npz` + SQLite 元数据
+- [ ] COM 口换位置 / Dev 名变化都能自动发现，前端不要求用户填硬件名
+- [ ] 后端单进程 RAM < 300 MB（Linux + VM 各算），持续 CPU < 30%
 
 ---
 
-## Phase 3:用 WebUI 跑实验 + 录数据集 ⚪
+## Phase 2.5:AO + AI 硬件同步触发 + 实验 01 chirp Bode 一键跑 ⚪
+
+**目标**：在 Phase 2 已通的前提下加同步触发，跑 `docs/exp-01-bandwidth-test.md` 描述的 chirp Bode 实验。
+
+- [ ] AO+AI 共享 start_trigger（USB-6002 `/Dev1/ai/StartTrigger` 配 `start_trigger.cfg_dig_edge_start_trig`）
+- [ ] 前端"输出 AO" Tab 加"与 AI 同步触发"选项
+- [ ] 实验预设 Tab（chirp 1Hz–2kHz × 30s @ 5kS/s + AI ai0/ai1 diff 模式）
+- [ ] Bode 计算（实时画 H(f) + |H(f)| + ∠H(f)）
+- [ ] 实验数据 schema 扩展：录 AO 参考波 + AI 采集 + 程序参数
+
+---
+
+## Phase 3:ML 数据集采集 ⚪
 
 **目标**:把 `docs/exp-01-bandwidth-test.md` 里描述的实验,**通过 Phase 2 的 WebUI 完成**——并以此为契机录一份正式的 ML 数据集。
 
 ### 3.1 实验 01:材料带宽测试(详见 `docs/exp-01-bandwidth-test.md`)
+> 实验 01 的软件能力（HW sync + chirp Bode + Bode 计算）由 **Phase 2.5** 提供。Phase 3.1 是用这套能力做物理实验、出结果。
 - [ ] 凑物料:喇叭、双面胶、铜箔、夹具、BNC 线
 - [ ] Step 0:噪声基线(用 WebUI 录,标签 `baseline_short`)
 - [ ] Step 1:1 kHz 单音 go/no-go
@@ -185,19 +221,19 @@ WebUI 本身就是这个项目最重要的实验工具。**先把工具做出来
 
 ---
 
-# Next actions(按优先级排序)
+# Next actions（按优先级，2026-05-03 更新）
 
-1. ~~关 Lab Linux 休眠~~ ✅ 已完成（2026-05-03）
-2. ~~ISO 下载 + 传宿主机~~ ✅ 已完成
-3. ~~创建 Windows VM~~ ✅ 已完成
-4. ~~通过 autounattend.xml 完成 Windows 无人值守安装~~ ✅
-5. ~~VM 内装 NI-DAQmx 25.5 + Python 3.12 + 包~~ ✅（曾被网络中断打断，最后 `palSetup64.msi REINSTALL=ALL` 修复 nipal 内核驱动）
-6. ~~enumerate test~~ ✅ `Dev1: USB-6002 S/N 0x2685c37`
-7. ~~6514 IDN on Windows VM~~ ✅
-8. **跑 Phase 1.3 剩余 smoke tests**（50kS/s 1秒、60秒连续、差分vs单端、AO环回）—— 现在每次 VM 重启需要走 §9 的恢复步骤
-9. **解决 VM 重启后 USB 必须手动 detach/attach 的问题**（systemd unit 或 NIPM 完整修复）
-10. **写 Phase 2 后端骨架**(`instruments/daq.py` + `instruments/electrometer.py` 优先)
-11. **写 Phase 2 WebSocket + uPlot 前端原型**(端到端跑通最重要,UI 后面再美化)
+**Phase 1 已全部完成** ✅（Windows VM、NI-DAQmx 25.5、6514 RS-232、4 个 smoke tests、数据归档）
+
+下一步进入 **Phase 2: WebUI 接真硬件**，详细设计见 [`phase2-design.md`](phase2-design.md)：
+
+1. **VM 侧 daq daemon 起步** —— `daq_daemon/discovery.py` + `daq_worker.py` 先做出来，本地 PowerShell + python 测试通过再往上盖 FastAPI
+2. **Linux 侧 BridgeClient** —— 同步实现，先用 mock daemon 跑前端
+3. **前端 Tab 重组** —— 1/2/3/4 四个 Tab，Run/Pause/Stop/Single 按钮，桥状态指示灯
+4. **VM 服务部署** —— Windows scheduled task / NSSM，开机自起 8765
+5. **VM 重启自动恢复** —— 把 `windows-vm-plan.md §10` 的 `nidevldu` / `nipalk` / phantom 处理写进 `daq_daemon/recovery.py`
+6. **端到端 50 kHz × 60s 不崩** —— Phase 2 验收硬指标
+7. （Phase 2 通过后）**Phase 2.5: AO+AI HW sync + 实验 01 chirp Bode 一键跑**
 
 ---
 

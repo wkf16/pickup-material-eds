@@ -1,10 +1,10 @@
 # 系统架构
 
-> 这份文档描述目标产品(Web 实验台)的整体架构,以及它在已有硬件(Keithley 6514 + NI USB-6002 + Manjaro Lab Linux)之上如何组织。**当前状态:设计阶段,代码尚未写**——见 `roadmap.md` 的 Phase 2。自 2026-05-03 起,DAQ 与串口驱动层迁移为 **Windows VM 方案**。
+> 这份文档描述目标产品(Web 实验台)的整体架构,以及它在已有硬件(Keithley 6514 + NI USB-6002 + Manjaro Lab Linux)之上如何组织。**当前状态(2026-05-03):Phase 1 ✅ 完成,Phase 2 设计已确认见 `phase2-design.md`,WebUI MVP 已合并(simulator-backed),真硬件接入开发中**。自 2026-05-03 起,DAQ 与串口驱动层运行在 **Windows VM**,WebUI 进程留在 **Lab Linux 主机**,两者用 **virtio-net 桥 + WebSocket 二进制流** 连接。
 
 ## 1. 一句话定位
 
-一个**运行在 Windows VM 上、由 Lab Linux 承载的内网 Web 应用**,把 `Keithley 6514 + NI USB-6002` 这套硬件包成"网页示波器 + 仪器虚拟前面板 + 实验数据管理器",支持远程实时监测、控制 6514、录制带类别标签的数据集、嵌入终端调试。
+一个 **WebUI 跑在 Lab Linux、DAQ daemon 跑在 Windows VM** 的两段式应用,把 `Keithley 6514 + NI USB-6002` 这套硬件包成"网页示波器 + 仪器虚拟前面板 + 实验数据管理器",支持远程实时监测、控制 6514、录制带类别标签的数据集、嵌入终端调试。
 
 ## 2. 顶层数据流
 
@@ -15,28 +15,33 @@
 └─────────────────────────────────────────────────────────────┘
                   ▲                       ▲
                   │ WebSocket             │ REST(JSON)
-                  │ ~10-50 fps            │ 控制命令
-                  │ 降采样后波形          │
+                  │ ~30 fps 默认          │ 控制命令
+                  │ 720 点/帧 降采样      │
                   ▼                       ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Windows VM 后端 — FastAPI + uvicorn(单进程,asyncio)       │
+│  Lab Linux WebUI — FastAPI :80                              │
 │                                                             │
 │  ┌──────────────┐   ┌──────────────┐   ┌────────────────┐  │
-│  │ DAQ Worker   │   │ 6514 Worker  │   │ Storage Mgr    │  │
-│  │ nidaqmx 流采  │   │ pyserial-async│   │ ring buffer    │  │
-│  │ 50 kS/s      │   │ SCPI lock     │   │  + Parquet/npy │  │
+│  │ BridgeClient │   │ DecimateWS   │   │ Storage Mgr    │  │
+│  │  (ws 长连)   │──▶│  → 浏览器     │   │ ring buffer    │  │
+│  │  状态机       │   │  720pt/frame  │   │  + .npz/SQLite │  │
+│  └──────┬───────┘   └──────────────┘   └────────────────┘  │
+│         │ 二进制 WS 流(50 kHz × 4B)                          │
+└─────────┼───────────────────────────────────────────────────┘
+          │  192.168.122.0/24 virbr0,RTT < 0.5 ms
+          ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Windows VM DAQ Daemon — FastAPI :8765(仅 NAT 内)           │
+│                                                             │
+│  ┌──────────────┐   ┌──────────────┐   ┌────────────────┐  │
+│  │ DAQ Worker   │   │ SCPI Proxy   │   │ Recovery       │  │
+│  │ nidaqmx 流采  │   │ pyserial 单例 │   │ COM/Dev 自动发现│  │
+│  │ 50 kS/s      │   │ 6514 队列     │   │ NI 服务自动起   │  │
 │  └──────┬───────┘   └──────┬────────┘   └────────────────┘  │
 │         │                   │                               │
 │         └───────────┬───────┘                               │
 │                     ▼                                       │
-│             公共状态总线(asyncio Event/Queue)               │
-└─────────────────────────────────────────────────────────────┘
-                  ▲
-                  │ KVM / libvirt / USB passthrough
-                  ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Lab Linux 宿主机(Manjaro)                                  │
-│  负责 Tailscale / SSH / libvirt / 磁盘文件 / 可选反代        │
+│             公共状态(asyncio Lock + WS broadcast)            │
 └─────────────────────────────────────────────────────────────┘
                   │                       │
                   ▼ USB                   ▼ RS-232 (USB-Serial)
@@ -57,29 +62,42 @@
 
 ## 3. 模块职责
 
-### 3.1 后端 — `src/pickup_eds/`
+### 3.1 Lab Linux WebUI — `src/pickup_eds/`(已合并 MVP)
 
 ```
 src/pickup_eds/
 ├── instruments/
-│   ├── electrometer.py      # 6514 SCPI 异步包装 + 状态缓存
-│   └── daq.py               # USB-6002 nidaqmx 流采 + ring buffer
+│   ├── electrometer_serial.py   # 现存 MVP,Phase 2 改成 BridgeClient 调 VM
+│   ├── simulator.py             # 仅 dev 模式
+│   └── bridge.py (TODO Phase 2) # 与 VM daq daemon 的 ws 客户端 + 状态机
 ├── core/
-│   ├── scope.py             # 触发逻辑、显示降采样、捕获快照
-│   ├── recorder.py          # 录制状态机、文件轮转、元数据
-│   └── storage.py           # Parquet/npy 落盘 + SQLite 元数据
+│   ├── ring_buffer.py
+│   └── storage.py               # .npz + SQLite
 ├── api/
-│   ├── main.py              # FastAPI app 入口、生命周期管理
-│   ├── ws.py                # WebSocket: /ws/stream(波形) /ws/state(状态)
-│   ├── control.py           # REST: POST /api/control/*  (设量程/功能/触发)
-│   ├── recording.py         # REST: POST /api/recording/{start,stop}
-│   └── data.py              # REST: GET /api/data/*  (列表/下载)
-└── web/                     # 静态前端
-    ├── index.html
-    ├── scope.js             # uPlot + WebSocket 客户端
-    ├── controls.js          # 仪器控制 UI(Alpine.js)
-    └── style.css
+│   ├── main.py                  # FastAPI :80 入口
+│   ├── ws.py                    # /ws/stream  /ws/state (浏览器侧)
+│   ├── control.py               # REST 控制
+│   ├── recording.py             # REST 录制
+│   └── data.py                  # REST 数据列表 / 预览 / 下载
+├── schemas.py
+├── config.py
+└── web/
+    ├── index.html               # 单文件 (Alpine + uPlot 内嵌)
+    └── favicon.png
 ```
+
+### 3.1.5 Windows VM DAQ Daemon — `src/pickup_eds/daq_daemon/`(Phase 2 新增)
+
+```
+daq_daemon/
+├── app.py            # FastAPI :8765 入口
+├── discovery.py      # USB-6002 + 6514 自动发现
+├── daq_worker.py     # nidaqmx Task + ring buffer + 二进制 ws 推送
+├── scpi_proxy.py     # pyserial 单例 + 命令队列
+└── recovery.py       # 启动时检查/启动 NI 服务、phantom 处理
+```
+
+详见 `phase2-design.md` 第 1、6 节。
 
 ### 3.2 关键设计原则
 
@@ -163,16 +181,17 @@ src/pickup_eds/
 ┌────────────────────────── Lab Linux (Manjaro) ──────────────────────────┐
 │                                                                        │
 │  systemd services:                                                     │
-│    ─ libvirtd.service       (KVM/libvirt)                              │
-│    ─ 可选: ttyd.service     :7681  (宿主机终端)                        │
+│    ─ libvirtd.service           (KVM/libvirt)                          │
+│    ─ pickup-eds-webui.service   :80   (Lab Linux 的 FastAPI)           │
+│    ─ 可选: ttyd.service         :7681 (宿主机终端)                     │
 │                                                                        │
-│  Windows 10 LTSC VM:                                                   │
-│    ─ pickup-eds backend     :8000                                      │
+│  Windows 10 LTSC VM (192.168.122.8):                                   │
+│    ─ pickup-eds-daq.service    :8765  (DAQ daemon, NAT 内)             │
 │    ─ USB passthrough: USB-6002 + 6514 USB-Serial                       │
 │                                                                        │
 │  访问方式:                                                              │
-│    ─ 直接访问 guest IP                                                 │
-│    ─ 或后续由宿主机反代/转发                                           │
+│    ─ 浏览器 → http://lab4070/        (Tailscale 任意位置)              │
+│    ─ Linux WebUI → ws 连 192.168.122.8:8765 (内部桥)                  │
 │                                                                        │
 └────────────────────────────────────────────────────────────────────────┘
 ```
