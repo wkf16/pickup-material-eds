@@ -117,6 +117,29 @@ class StorageManager:
             conn.commit()
         return summary
 
+    def delete_dataset(self, dataset_id: str) -> bool:
+        """Drop the catalog row and unlink the on-disk file. Idempotent.
+
+        Returns True if a row was removed, False if dataset_id was unknown.
+        Missing files are silently OK so a half-orphaned dataset can still
+        be cleaned up.
+        """
+        summary = self.get_dataset(dataset_id)
+        if summary is None:
+            return False
+        # Best-effort file unlink; missing file isn't fatal.
+        try:
+            from pathlib import Path as _P
+            p = _P(summary.file_path)
+            if p.exists():
+                p.unlink()
+        except Exception:
+            pass  # row will still go; orphan files can be swept manually
+        with sqlite3.connect(self._db_path) as conn:
+            conn.execute("DELETE FROM datasets WHERE id = ?", (dataset_id,))
+            conn.commit()
+        return True
+
     def get_dataset(self, dataset_id: str) -> DatasetSummary | None:
         with sqlite3.connect(self._db_path) as conn:
             conn.row_factory = sqlite3.Row

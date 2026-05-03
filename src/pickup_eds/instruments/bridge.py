@@ -532,6 +532,16 @@ class RealBenchService:
     async def get_dataset(self, dataset_id: str) -> DatasetSummary | None:
         return self._storage.get_dataset(dataset_id)
 
+    async def delete_dataset(self, dataset_id: str) -> bool:
+        ok = self._storage.delete_dataset(dataset_id)
+        if ok:
+            async with self._lock:
+                self._datasets = [d for d in self._datasets if d.id != dataset_id]
+                if self._recording.last_dataset_id == dataset_id:
+                    self._recording = self._recording.model_copy(update={"last_dataset_id": None})
+            await self._broadcast_state()
+        return ok
+
     # ─── DAQ task control (route to bridge) ─────────────────────
 
     async def daq_run(self, config: dict[str, Any]) -> AppState:

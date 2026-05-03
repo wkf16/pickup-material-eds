@@ -38,3 +38,11 @@ async def download_dataset(dataset_id: str, request: Request) -> FileResponse:
         media_type="application/octet-stream",
         filename=Path(dataset.file_path).name,
     )
+
+
+@router.delete("/{dataset_id}")
+async def delete_dataset(dataset_id: str, request: Request) -> dict[str, object]:
+    ok = await _service(request).delete_dataset(dataset_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="dataset not found")
+    return {"ok": True, "id": dataset_id}

@@ -401,6 +401,12 @@ button:focus-visible,
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(99,91,255,0.18);
 }
+button.danger {
+  color: #b03030;
+  border-color: #d8a3a3;
+}
+button.danger:hover { background: #ffefef; border-color: #b03030; }
+button.danger:disabled { opacity: 0.5; cursor: not-allowed; }
 button:active,
 .dataset-actions a:active {
   background: var(--surface-sunken);
@@ -1564,6 +1570,7 @@ function renderDatasets(items) {
           <div class="dataset-actions">
             <button data-preview="${escapeHtml(item.id)}">预览</button>
             <a href="/api/data/${encodeURIComponent(item.id)}/download">下载</a>
+            <button class="danger" data-delete="${escapeHtml(item.id)}" data-label="${escapeHtml(item.label)}">删除</button>
           </div>
         </article>
       `
@@ -1571,6 +1578,25 @@ function renderDatasets(items) {
     .join("");
   document.querySelectorAll("[data-preview]").forEach((button) => {
     button.addEventListener("click", () => previewDataset(button.dataset.preview));
+  });
+  document.querySelectorAll("[data-delete]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const id = button.dataset.delete;
+      const label = button.dataset.label || id;
+      if (!window.confirm(`确认删除录制 "${label}"？此操作不可撤销。`)) return;
+      button.disabled = true;
+      try {
+        const r = await fetch(`/api/data/${encodeURIComponent(id)}`, { method: "DELETE" });
+        if (!r.ok) throw new Error(await r.text() || r.statusText);
+        showToast(`已删除 ${label}`);
+        // Refresh list immediately (state push will also fire)
+        const fresh = await api("/api/data/list");
+        renderDatasets(fresh.items || []);
+      } catch (e) {
+        button.disabled = false;
+        showToast(`删除失败: ${e.message}`, "error");
+      }
+    });
   });
 }
 
