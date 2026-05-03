@@ -1003,8 +1003,6 @@ input[type="number"]:focus {
             </div>
             <div class="daq-buttons">
               <button id="btnDaqRun" class="primary">▶ Run</button>
-              <button id="btnDaqPause">⏸ Pause</button>
-              <button id="btnDaqSingle">○ Single</button>
               <button id="btnDaqStop" class="stop">■ Stop</button>
             </div>
             <p class="muted-line" id="daqMeta" style="margin-top:10px;font-size:11px;color:var(--ink-muted);">— · 0 samples · 0 overruns</p>
@@ -1433,8 +1431,6 @@ const el = {
   daqTerminal: document.getElementById("daqTerminal"),
   daqRange: document.getElementById("daqRange"),
   btnDaqRun: document.getElementById("btnDaqRun"),
-  btnDaqPause: document.getElementById("btnDaqPause"),
-  btnDaqSingle: document.getElementById("btnDaqSingle"),
   btnDaqStop: document.getElementById("btnDaqStop"),
   aoChannel: document.getElementById("aoChannel"),
   aoMode: document.getElementById("aoMode"),
@@ -2111,14 +2107,6 @@ function bindDaqButtons() {
       await submitJSON("/api/control/daq/run", cfg());
       showToast("DAQ Run");
     } catch (e) { showToast(`Run 失败: ${e.message}`, "error"); }
-  });
-  el.btnDaqPause.addEventListener("click", async () => {
-    try { await submitJSON("/api/control/daq/pause", {}); showToast("DAQ Pause"); }
-    catch (e) { showToast(`Pause 失败: ${e.message}`, "error"); }
-  });
-  el.btnDaqSingle.addEventListener("click", async () => {
-    try { await submitJSON("/api/control/daq/single", cfg()); showToast("DAQ Single"); }
-    catch (e) { showToast(`Single 失败: ${e.message}`, "error"); }
   });
   el.btnDaqStop.addEventListener("click", async () => {
     try { await submitJSON("/api/control/daq/stop", {}); showToast("DAQ Stop"); }

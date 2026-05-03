@@ -54,7 +54,7 @@ class ControlState(BaseModel):
     zero_correct: bool
 
 
-DaqRunState = Literal["idle", "running", "paused", "single"]
+DaqRunState = Literal["idle", "running"]
 AoRunState = Literal["idle", "running"]
 BridgeStateName = Literal[
     "disconnected",

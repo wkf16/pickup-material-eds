@@ -565,13 +565,6 @@ class RealBenchService:
         await self._broadcast_state()
         return await self.snapshot_state()
 
-    async def daq_pause(self) -> AppState:
-        # Pause = freeze display only; daemon keeps running.
-        async with self._lock:
-            self._daq_state = "paused"
-        await self._broadcast_state()
-        return await self.snapshot_state()
-
     async def daq_stop(self) -> AppState:
         try:
             await self.bridge.daq_stop()
@@ -579,15 +572,6 @@ class RealBenchService:
             logger.warning("daq_stop on bridge failed: %s", exc)
         async with self._lock:
             self._daq_state = "idle"
-        await self._broadcast_state()
-        return await self.snapshot_state()
-
-    async def daq_single(self, config: dict[str, Any]) -> AppState:
-        # Phase 2: implement as "run for ~1 window" — start, mark single,
-        # the consume loop will flip back to idle after one window of data.
-        await self.daq_run(config)
-        async with self._lock:
-            self._daq_state = "single"
         await self._broadcast_state()
         return await self.snapshot_state()
 

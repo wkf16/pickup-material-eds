@@ -77,21 +77,9 @@ async def daq_run(payload: DaqRunRequest, request: Request) -> dict[str, object]
     return {"ok": True, "state": state.model_dump(mode="json")}
 
 
-@router.post("/daq/pause")
-async def daq_pause(request: Request) -> dict[str, object]:
-    state = await _service(request).daq_pause()
-    return {"ok": True, "state": state.model_dump(mode="json")}
-
-
 @router.post("/daq/stop")
 async def daq_stop(request: Request) -> dict[str, object]:
     state = await _service(request).daq_stop()
-    return {"ok": True, "state": state.model_dump(mode="json")}
-
-
-@router.post("/daq/single")
-async def daq_single(payload: DaqRunRequest, request: Request) -> dict[str, object]:
-    state = await _service(request).daq_single(payload.model_dump())
     return {"ok": True, "state": state.model_dump(mode="json")}
 
 

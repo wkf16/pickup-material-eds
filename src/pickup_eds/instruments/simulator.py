@@ -318,21 +318,9 @@ class SimulatedBenchService:
         await self._broadcast_state()
         return await self.snapshot_state()
 
-    async def daq_pause(self) -> AppState:
-        async with self._lock:
-            self._daq_state = "paused"
-        await self._broadcast_state()
-        return await self.snapshot_state()
-
     async def daq_stop(self) -> AppState:
         async with self._lock:
             self._daq_state = "idle"
-        await self._broadcast_state()
-        return await self.snapshot_state()
-
-    async def daq_single(self, config: dict[str, Any]) -> AppState:
-        async with self._lock:
-            self._daq_state = "single"
         await self._broadcast_state()
         return await self.snapshot_state()
 
