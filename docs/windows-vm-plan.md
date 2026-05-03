@@ -179,3 +179,52 @@ sudo virsh domdisplay pickup-win10-ltsc
 # 查 VM 获取的 NAT IP（Windows 装好后）
 sudo virsh domifaddr pickup-win10-ltsc
 ```
+
+## 10. VM 重启后的恢复步骤（每次都要做）
+
+**症状**：VM 重启后 USB 设备在 Windows 里显示 `Status: Unknown, Present: False`（phantom），就算宿主端 `lsusb` 仍然看到。NI services 也部分没起来，`nidaqmx.system.System.local().devices.device_names` 返回空。
+
+**原因（猜测）**：qemu-xhci + Windows USB stack 在重启时丢状态；NI 启动顺序里 `nidevldu`（PnP→MAX 桥梁）有时不自启。
+
+**恢复步骤**（lab4070 上执行，假设 VM IP = 192.168.122.8，凭据 Admin/Lab2026!）：
+
+```bash
+# 1) USB 重新接到 VM 上（PL2303 + USB-6002）
+echo 203 | sudo -S virsh detach-device pickup-win10-ltsc /tmp/usb_pl.xml --live
+sleep 2
+echo 203 | sudo -S virsh attach-device pickup-win10-ltsc /tmp/usb_pl.xml --live
+echo 203 | sudo -S virsh detach-device pickup-win10-ltsc /tmp/usb_ni.xml --live
+sleep 2
+echo 203 | sudo -S virsh attach-device pickup-win10-ltsc /tmp/usb_ni.xml --live
+
+# 2) 通过 WinRM 起 NI 服务（用 /home/a203/winrm-venv 里的 pywinrm，NTLM auth）
+# /tmp/usb_pl.xml 内容：vendor 0x067b / product 0x23a3
+# /tmp/usb_ni.xml 内容：vendor 0x3923 / product 0x76c4
+```
+
+**Windows 端 PowerShell（通过 WinRM 跑）**：
+```powershell
+$svcs = 'niauth','niSvcLoc','NIDomainService','mxssvr','nimDNSResponder',
+        'nisds','NITaggerService','niroco','NINetworkDiscovery','nipxicmsvc','nidevldu'
+foreach ($s in $svcs) { Start-Service $s -ErrorAction SilentlyContinue }
+```
+
+**如果 `nipalk` 服务不存在或不能启动**（这种情况下 USB-6002 firmware 上传不了，会停在 `3923:76f9` USB Firmware Updater 模式而不是 `3923:76c4` 工作模式）：
+```powershell
+# 这个 MSI 是从 ni-pal_25.5.0.49270-0+f118_windows_x64.nipkg 里 unpack 出来的
+msiexec /i "C:\setup\nipal_pkg\data\palSetup64.msi" /quiet REINSTALL=ALL REINSTALLMODE=vomus /log C:\setup\palSetup64.log
+# 然后重启 VM
+```
+
+**验证**：
+```python
+# Python 3.12 in Windows VM
+import nidaqmx, serial
+print(list(nidaqmx.system.System.local().devices.device_names))  # 应该 ['Dev1']
+with serial.Serial('COM3', 9600, timeout=2) as p:
+    p.write(b'*IDN?\r\n'); import time; time.sleep(0.4)
+    print(p.read(p.in_waiting).decode())  # KEITHLEY ...,MODEL 6514,4691930,...
+```
+
+**TODO**：把这套恢复脚本封装成 systemd unit（lab）+ Windows scheduled task at logon（VM），让重启自动恢复。
+

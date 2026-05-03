@@ -25,7 +25,7 @@ WebUI 本身就是这个项目最重要的实验工具。**先把工具做出来
 | Phase | 目标 | 状态 | 阻塞点 |
 |---|---|---|---|
 | **Phase 0** | 项目骨架 + 文档基础 | ✅ 完成 | — |
-| **Phase 1** | Windows VM 中的 NI-DAQmx 驱动 + 端到端链路验证 | 🟡 进行中 | Windows ISO 待本地下载并传宿主机 |
+| **Phase 1** | Windows VM 中的 NI-DAQmx 驱动 + 端到端链路验证 | ✅ 完成（链路 + 4 个 smoke test 全过） | — |
 | **Phase 2** | WebUI MVP(实时显示 + 6514 控制 + 录制) | ⚪ 未启动 | Phase 1 |
 | **Phase 3** | 用 WebUI 跑实验 01 + ML 数据集采集 | ⚪ 未启动 | Phase 2 |
 | **Phase 4** | ML 训练 + 推理集成回 WebUI | ⚪ 未启动 | Phase 3 |
@@ -65,27 +65,29 @@ WebUI 本身就是这个项目最重要的实验工具。**先把工具做出来
 - [x] **本地下载** Windows 10 Enterprise LTSC 2021 x64 ISO（`~/Downloads/en-us_windows_10_enterprise_ltsc_2021_x64_dvd_d289cf96.iso`）
 - [x] ISO 传到 Lab Linux（`/var/lib/libvirt/images/`，注：需放此目录，见 `windows-vm-plan.md §4`）
 - [x] 创建 Windows VM(UEFI + TPM 2.0 + USB passthrough) → `pickup-win10-ltsc` running，SPICE `localhost:5900`
-- [ ] **通过 SPICE 完成 Windows 安装**（见 `docs/windows-vm-plan.md §9`）
-- [ ] VM 内安装 NI-DAQmx
-- [ ] VM 内安装 Python 3.12 + `nidaqmx` / numpy / scipy / soundfile
-- [ ] 跑最小 enumerate 测试:
+- [x] **autounattend.xml 完成 Windows 无人值守安装**（用 floppy 注入，见 `docs/windows-vm-plan.md §9`）
+- [x] VM 内安装 NI-DAQmx 25.5（在线 installer，曾因网络中断导致 nipal 内核驱动半装；通过 `palSetup64.msi /REINSTALL=ALL REINSTALLMODE=vomus` 修复）
+- [x] VM 内安装 Python 3.12 + `nidaqmx` / numpy / scipy / soundfile / matplotlib / pyserial
+- [x] 跑最小 enumerate 测试 ✅ 看到 `Dev1: USB-6002 S/N 0x2685c37`
   ```python
   import nidaqmx
-  print(nidaqmx.system.System.local().devices)
-  # 应该能看到 USB-6002 / Dev1
+  print(list(nidaqmx.system.System.local().devices.device_names))  # ['Dev1']
   ```
+- [x] 6514 RS-232 在 Windows VM 上跑 IDN ✅ `KEITHLEY ...,MODEL 6514,4691930,A13` 与 Mac 测试一致
 
-### 1.3 DAQ 侧:性能边界实测
-- [ ] **Smoke test 1**:1 秒满速 50 kS/s 单通道采集,看读出 50000 个点,无异常
-- [ ] **Smoke test 2**:60 秒**连续**流采,主机缓冲 200 ms,**统计有无 buffer overrun**
-- [ ] **Smoke test 3**:差分模式 vs 单端模式,环境噪声差距记录
-- [ ] **Smoke test 4**(可选):AO 单通道 5 kS/s 输出 1 kHz 正弦,环回到 AI 验证
-- [ ] 数据落盘到 `data/phase1_smoketests/`,FFT 看一眼
+### 1.3 DAQ 侧:性能边界实测（数据保存在 VM `C:\setup\phase1_smoke\`）
+- [x] **Smoke test 0**：1kS/s 100 点单通道，130ms 完成，开路噪声 σ=2.13V
+- [x] **Smoke test 1**：50 kS/s × 50000 点 single-shot，1066ms 完成，全部样本到位 ✅
+- [x] **Smoke test 2**：60 秒 **连续** 流采 @ 50 kS/s，每 ~200ms 读一块，**3M 样本、0 overrun、丢失率 +0.017%** ✅
+- [x] **Smoke test 3**：差分 vs 单端，开路输入下 DIFF std=0.30V vs RSE std=2.26V，**DIFF 抑制共模噪声 7.5×**
+- [x] **Smoke test 4**：AO 5 kS/s 1kHz 正弦写入 + AI 同时读，软件层全通；ao0 物理上未连到 ai0 所以 AI 端没看到信号（属于预期，需要拿杜邦线或 BNC 跳线连一下才能验证回环）
+- [x] 落盘到 `data/phase1_smoketests/`（已 scp 到本地，6 个 .npy + 一个 status.txt）
 
 ### 1.4 6514 侧:验证已通的链路依然通
 - [x] RS-232 物理接线(已验证,IDN 拿到 S/N 4691930)
 - [x] 用 `scripts/capture_freqresp.py` 配置 + 一次有限采集(在 Mac 端验证过命令)
-- [ ] 在 Windows VM 上重跑同样脚本(确认 6514 串口 + nidaqmx 配合)
+- [x] 在 Windows VM 上重跑 IDN ✅（COM3 = Prolific PL2303GT，9600 8N1，IDN 返回与 Mac 一致）
+- [ ] 在 Windows VM 上跑完整 capture_freqresp.py（带 6514 + nidaqmx 配合的扫频）
 - [x] 对照表:V/I/R/Q 四个模式各发 SCPI 切换 + 验证 `FUNC?` 回读
 
 ### 1.5 端到端验证
@@ -185,14 +187,17 @@ WebUI 本身就是这个项目最重要的实验工具。**先把工具做出来
 
 # Next actions(按优先级排序)
 
-1. ~~关 Lab Linux 休眠~~ ✅ 已完成（`sleep/suspend/hibernate/hybrid-sleep` 全部 masked，2026-05-03）
-2. ~~ISO 下载 + 传宿主机~~ ✅ 已完成，ISO 在 `/var/lib/libvirt/images/`
-3. ~~创建 Windows VM~~ ✅ 已完成，`pickup-win10-ltsc` running，SPICE `localhost:5900`
-4. **通过 SPICE 连接 VM，完成 Windows 安装**（见 `docs/windows-vm-plan.md §9`）
-5. **VM 内装 NI-DAQmx + Python**,跑 enumerate test
-6. **跑 Phase 1.3 四个 smoke test**,记录性能边界
-7. **写 Phase 2 后端骨架**(`instruments/daq.py` + `instruments/electrometer.py` 优先)
-8. **写 Phase 2 WebSocket + uPlot 前端原型**(端到端跑通最重要,UI 后面再美化)
+1. ~~关 Lab Linux 休眠~~ ✅ 已完成（2026-05-03）
+2. ~~ISO 下载 + 传宿主机~~ ✅ 已完成
+3. ~~创建 Windows VM~~ ✅ 已完成
+4. ~~通过 autounattend.xml 完成 Windows 无人值守安装~~ ✅
+5. ~~VM 内装 NI-DAQmx 25.5 + Python 3.12 + 包~~ ✅（曾被网络中断打断，最后 `palSetup64.msi REINSTALL=ALL` 修复 nipal 内核驱动）
+6. ~~enumerate test~~ ✅ `Dev1: USB-6002 S/N 0x2685c37`
+7. ~~6514 IDN on Windows VM~~ ✅
+8. **跑 Phase 1.3 剩余 smoke tests**（50kS/s 1秒、60秒连续、差分vs单端、AO环回）—— 现在每次 VM 重启需要走 §9 的恢复步骤
+9. **解决 VM 重启后 USB 必须手动 detach/attach 的问题**（systemd unit 或 NIPM 完整修复）
+10. **写 Phase 2 后端骨架**(`instruments/daq.py` + `instruments/electrometer.py` 优先)
+11. **写 Phase 2 WebSocket + uPlot 前端原型**(端到端跑通最重要,UI 后面再美化)
 
 ---
 
