@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
 
-from pickup_eds.instruments.simulator import SimulatedBenchService
+from pickup_eds.instruments.base import BenchServiceProtocol
 from pickup_eds.schemas import RecordingStartRequest
 
 router = APIRouter(prefix="/api/recording", tags=["recording"])
 
 
-def _service(request: Request) -> SimulatedBenchService:
+def _service(request: Request) -> BenchServiceProtocol:
     return request.app.state.service
 
 

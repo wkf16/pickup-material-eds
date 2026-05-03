@@ -11,7 +11,16 @@ from pickup_eds.config import Settings
 from pickup_eds.core.ring_buffer import RingBuffer, decimate_pair
 from pickup_eds.core.storage import StorageManager
 from pickup_eds.instruments.electrometer_serial import Real6514Serial
-from pickup_eds.schemas import AppState, ControlState, DaqState, DatasetSummary, RecordingState, ScpiLogEntry
+from pickup_eds.schemas import (
+    AoState,
+    AppState,
+    ControlState,
+    DaqState,
+    DatasetSummary,
+    RecordingState,
+    ScpiLogEntry,
+)
+from typing import Any
 
 
 class SimulatedBenchService:
@@ -48,6 +57,12 @@ class SimulatedBenchService:
         ]
         self._record_times: list[np.ndarray] = []
         self._record_values: list[np.ndarray] = []
+        self._daq_state: str = "running"
+        self._daq_channels: list[str] = ["ai0"]
+        self._daq_terminal: str = "RSE"
+        self._daq_range_v: float = 10.0
+        self._daq_samples_emitted: int = 0
+        self._ao = AoState()
         self._lock = asyncio.Lock()
         self._state_watchers: set[asyncio.Queue[dict[str, object]]] = set()
         self._stream_seq = 0
@@ -78,22 +93,33 @@ class SimulatedBenchService:
             self._run_task.cancel()
             await asyncio.gather(self._run_task, return_exceptions=True)
 
+    def _daq_snapshot(self) -> DaqState:
+        return DaqState(
+            sample_rate_hz=self._settings.sample_rate_hz,
+            display_window_s=self._settings.stream_window_s,
+            live_rms=self._last_rms,
+            live_peak=self._last_peak,
+            display_points=self._settings.stream_points,
+            state=self._daq_state,  # type: ignore[arg-type]
+            channels=list(self._daq_channels),
+            terminal=self._daq_terminal,  # type: ignore[arg-type]
+            range_v=self._daq_range_v,
+            samples_emitted=self._daq_samples_emitted,
+            overruns=0,
+        )
+
     async def snapshot_state(self) -> AppState:
         async with self._lock:
             return AppState(
                 updated_at=datetime.now(UTC),
                 control=self._control,
-                daq=DaqState(
-                    sample_rate_hz=self._settings.sample_rate_hz,
-                    display_window_s=self._settings.stream_window_s,
-                    live_rms=self._last_rms,
-                    live_peak=self._last_peak,
-                    display_points=self._settings.stream_points,
-                ),
+                daq=self._daq_snapshot(),
                 recording=self._recording,
                 datasets=self._datasets[:20],
                 scpi_port=self._scpi_port,
                 scpi_log=self._scpi_log[:12],
+                ao=self._ao,
+                bridge=None,
             )
 
     async def set_function(self, func: str) -> AppState:
@@ -149,17 +175,13 @@ class SimulatedBenchService:
                 inactive_state = AppState(
                     updated_at=datetime.now(UTC),
                     control=self._control,
-                    daq=DaqState(
-                        sample_rate_hz=self._settings.sample_rate_hz,
-                        display_window_s=self._settings.stream_window_s,
-                        live_rms=self._last_rms,
-                        live_peak=self._last_peak,
-                        display_points=self._settings.stream_points,
-                    ),
+                    daq=self._daq_snapshot(),
                     recording=self._recording,
                     datasets=self._datasets[:20],
                     scpi_port=self._scpi_port,
                     scpi_log=self._scpi_log[:12],
+                    ao=self._ao,
+                    bridge=None,
                 )
                 return inactive_state, self._storage.get_dataset(last_dataset_id) if last_dataset_id else None
             # Don't cancel the auto-stop task if WE are it. When the
@@ -266,6 +288,55 @@ class SimulatedBenchService:
 
     async def get_dataset(self, dataset_id: str) -> DatasetSummary | None:
         return self._storage.get_dataset(dataset_id)
+
+    # ─── DAQ task control (stubs that mutate display state only) ──────
+    # The simulator's continuous _run() loop never stops; "stop" only
+    # flips a flag so /api/state reflects what the user clicked. Real
+    # hardware control happens in RealBenchService via the daemon.
+
+    async def daq_run(self, config: dict[str, Any]) -> AppState:
+        async with self._lock:
+            self._daq_channels = list(config.get("channels", ["ai0"]))
+            self._daq_terminal = config.get("terminal", "RSE")
+            self._daq_range_v = float(config.get("range_v", 10.0))
+            self._daq_state = "running"
+        await self._broadcast_state()
+        return await self.snapshot_state()
+
+    async def daq_pause(self) -> AppState:
+        async with self._lock:
+            self._daq_state = "paused"
+        await self._broadcast_state()
+        return await self.snapshot_state()
+
+    async def daq_stop(self) -> AppState:
+        async with self._lock:
+            self._daq_state = "idle"
+        await self._broadcast_state()
+        return await self.snapshot_state()
+
+    async def daq_single(self, config: dict[str, Any]) -> AppState:
+        async with self._lock:
+            self._daq_state = "single"
+        await self._broadcast_state()
+        return await self.snapshot_state()
+
+    async def ao_start(self, config: dict[str, Any]) -> AppState:
+        async with self._lock:
+            self._ao = AoState(
+                state="running",
+                mode=config.get("mode", "DC"),
+                channel=config.get("channel", "ao0"),
+                params=config.get("params", {}),
+            )
+        await self._broadcast_state()
+        return await self.snapshot_state()
+
+    async def ao_stop(self) -> AppState:
+        async with self._lock:
+            self._ao = AoState(state="idle", channel=self._ao.channel)
+        await self._broadcast_state()
+        return await self.snapshot_state()
 
     async def stream_frame(self) -> dict[str, object]:
         max_samples = int(self._settings.sample_rate_hz * self._settings.stream_window_s)

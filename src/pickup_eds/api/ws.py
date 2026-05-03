@@ -4,12 +4,12 @@ import asyncio
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from pickup_eds.instruments.simulator import SimulatedBenchService
+from pickup_eds.instruments.base import BenchServiceProtocol
 
 router = APIRouter(tags=["ws"])
 
 
-def _service(websocket: WebSocket) -> SimulatedBenchService:
+def _service(websocket: WebSocket) -> BenchServiceProtocol:
     return websocket.app.state.service
 
 

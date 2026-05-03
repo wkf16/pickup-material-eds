@@ -50,12 +50,45 @@ class ControlState(BaseModel):
     zero_correct: bool
 
 
+DaqRunState = Literal["idle", "running", "paused", "single"]
+AoRunState = Literal["idle", "running"]
+BridgeStateName = Literal[
+    "disconnected",
+    "reconnecting",
+    "connected_idle",
+    "running",
+    "paused",
+    "error",
+]
+
+
 class DaqState(BaseModel):
     sample_rate_hz: int
     display_window_s: float
     live_rms: float
     live_peak: float
     display_points: int
+    state: DaqRunState = "idle"
+    channels: list[str] = ["ai0"]
+    terminal: Literal["RSE", "DIFF"] = "RSE"
+    range_v: float = 10.0
+    samples_emitted: int = 0
+    overruns: int = 0
+
+
+class AoState(BaseModel):
+    state: AoRunState = "idle"
+    mode: Literal["DC", "Sine", "Sweep-lin", "Sweep-log", "Chirp", "File replay"] | None = None
+    channel: str = "ao0"
+    params: dict[str, float] = {}
+
+
+class BridgeState(BaseModel):
+    state: BridgeStateName
+    daemon_addr: str
+    rtt_ms: float | None = None
+    last_seq: int = 0
+    last_error: str | None = None
 
 
 class RecordingState(BaseModel):
@@ -83,3 +116,5 @@ class AppState(BaseModel):
     datasets: list[DatasetSummary]
     scpi_port: str
     scpi_log: list[ScpiLogEntry] = []
+    ao: AoState = AoState()
+    bridge: BridgeState | None = None

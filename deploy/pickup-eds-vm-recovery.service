@@ -1,0 +1,19 @@
+[Unit]
+Description=Re-attach USB passthrough to pickup-win10-ltsc after host boot
+Documentation=https://github.com/okonfu/pickup-material-eds#vm-recovery
+After=libvirtd.service
+Wants=libvirtd.service
+ConditionPathExists=/usr/local/bin/refresh-vm-usb.sh
+
+[Service]
+Type=oneshot
+RemainAfterExit=no
+# Give libvirt's autostart logic time to bring the domain up. The
+# refresh script polls domstate up to 60 s as a second safety net.
+ExecStartPre=/bin/sleep 30
+ExecStart=/usr/local/bin/refresh-vm-usb.sh
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

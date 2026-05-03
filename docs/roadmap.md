@@ -54,7 +54,7 @@ WebUI 本身就是这个项目最重要的实验工具。**先把工具做出来
 ### 1.1 网络
 - [x] 装 Tailscale(用户已自行完成,见 [`memory/lab_machine.md`](../../.claude/projects/-Users-okonfu/memory/lab_machine.md))
 - [x] `ssh a203@203-precision3660` 工作(off-campus 也能连)
-- [ ] **关闭休眠**(让 Lab 节点 24/7 在 Tailscale 在线;`decisions.md` D-05)
+- [x] **关闭休眠**(masked sleep/suspend/hibernate/hybrid-sleep targets + logind HandleLid/Power/SuspendKey=ignore + IdleAction=ignore；2026-05-03 in Phase 2 infra)
 
 ### 1.2 DAQ 侧:Windows VM + NI-DAQmx
 - [x] 在 Lab Linux 上装 `qemu/libvirt/virt-install/OVMF/swtpm`
@@ -114,36 +114,36 @@ WebUI 本身就是这个项目最重要的实验工具。**先把工具做出来
 - [x] 文档：`api-reference.md` `webui-mvp-delivery.md` `performance.md` `dev-real-hardware.md`
 
 ### 2.1 VM 侧：DAQ Daemon（新模块 `src/pickup_eds/daq_daemon/`）
-- [ ] `discovery.py` ── USB-6002 (`Dev1` 自动发现) + 6514 (枚举 PnP + `*IDN?` 探测)
-- [ ] `daq_worker.py` ── nidaqmx Task（专用线程，`read_into` 预分配 buf），二进制 ws push
-- [ ] `scpi_proxy.py` ── pyserial 单例 + 命令队列
-- [ ] `recovery.py` ── 启动时检查 nipalk / nidevldu / mxssvr，phantom 自动 detach/attach
-- [ ] `app.py` ── FastAPI :8765 入口，REST `/api/daq/*` `/api/scpi/*` + WS `/ws/raw_stream`
-- [ ] Windows 服务部署（NSSM 或 scheduled task at logon）
+- [x] `discovery.py` ── USB-6002 (`Dev1` 自动发现) + 6514 (枚举 PnP + `*IDN?` 探测)
+- [x] `daq_worker.py` ── nidaqmx Task（专用线程，`read_into` 预分配 buf），二进制 ws push
+- [x] `scpi_proxy.py` ── pyserial 单例 + 命令队列
+- [x] `recovery.py` ── 启动时探测 nidaqmx，无设备则 pnputil rescan
+- [x] `app.py` ── FastAPI :8765 入口，REST `/api/daq/*` `/api/scpi/*` + WS `/ws/raw_stream`
+- [x] Windows 服务部署（scheduled task at startup, SYSTEM 账号，`scripts/deploy_daq_daemon.sh`）
 
 ### 2.2 Linux 侧：桥客户端 + 替换 simulator
-- [ ] `instruments/bridge.py` ── BridgeClient：ws 客户端 + 状态机 + 指数退避重连
-- [ ] `instruments/real_bench.py` ── RealBenchService（替换 SimulatedBenchService）
-- [ ] `api/main.py` ── 加 `--bridge ws://192.168.122.8:8765` flag，simulator 默认保留
-- [ ] `electrometer_serial.py` ── 改成调 daemon `/api/scpi/send`，不再读 `/dev/ttyUSB0`
-- [ ] 桥状态推送进 `/ws/state`：`{bridge: disconnected|reconnecting|idle|running|paused|error}`
+- [x] `instruments/bridge.py` ── BridgeClient：ws 客户端 + 状态机 + 指数退避重连
+- [x] `instruments/bridge.py` ── RealBenchService（实现 BenchServiceProtocol）
+- [x] `api/main.py` ── 加 `PICKUP_EDS_BRIDGE_URL` 环境变量，simulator 默认保留
+- [x] `electrometer_serial.py` ── bridge 模式下 SCPI 走 daemon `/api/scpi/send`
+- [x] 桥状态推送进 `AppState.bridge`：`{state, daemon_addr, rtt_ms, last_seq, last_error}`
 
-### 2.3 前端 Tabs（重写 `index.html` 的布局）
-- [ ] **Tab 1 实时**：DAQ 配置（采样率/通道/端接/量程/fps/窗口）+ uPlot
-- [ ] **Run / Pause** 主按钮（Pause 冻结显示但 DAQ 继续）
-- [ ] **Single** 单帧抓拍按钮
-- [ ] **Stop ⊗** 右上角小图标（完全停 DAQ task）
-- [ ] **Tab 2 录制**：标签 + 时长 + 格式 + 是否同步记 6514（@ 1Hz）+ 历史列表
-- [ ] **Tab 3 6514 SCPI**：保留 MVP 现状，数据通路走 daemon
-- [ ] **Tab 4 输出 AO**：通道 + 模式（DC/Sine/Sweep-lin/Sweep-log/Chirp/File replay）+ Free run（HW sync 留 2.5）
-- [ ] 桥状态指示灯（右上角小灯 + RTT 显示）
+### 2.3 前端 Tabs（surgical edit of `index.html`，保留 Canvas 2D 渲染）
+- [x] **Tab 1 实时**：DAQ 配置（采样率/通道/端接/量程）+ Canvas 2D scope
+- [x] **Run / Pause** 主按钮
+- [x] **Single** 单帧抓拍按钮
+- [x] **Stop ⊗** 完全停 DAQ task
+- [x] **Tab 2 录制**：标签 + 时长 + 历史列表（同 MVP）
+- [x] **Tab 3 6514 SCPI**：保留 MVP 现状，bridge 模式下数据通路走 daemon
+- [x] **Tab 4 输出 AO**：通道 + 模式（DC/Sine/Sweep-lin/Sweep-log/Chirp）+ Free run（File replay disabled, HW sync 留 2.5）
+- [x] 桥状态指示灯（header 右侧彩色圆点 + state + RTT + seq）
 
 ### 2.4 50 kHz 不崩
-- [ ] DAQ 读专用线程，event loop 只 touch ring buffer
-- [ ] ring buffer 用预分配 `numpy.float32` + 写指针环回，**满了覆盖最旧**
-- [ ] WS 二进制帧（`struct.pack` header + `float32`），不用 JSON 文本帧给样本流
-- [ ] 后端降采样到 720 点 / 帧后再下发浏览器
-- [ ] 录制写盘**只在 Linux 侧**（VM daemon 不写盘），桥拉数据，磁盘队列异步刷
+- [x] DAQ 读专用线程，event loop 只 touch frame queue（daq_worker.py）
+- [x] ring buffer 复用 `core/ring_buffer.py`，浏览器侧降采样到 720 点
+- [x] WS 二进制帧（`struct.pack` `<IIfI` + `float32` 数组）
+- [x] 后端降采样到 720 点 / 帧后再下发浏览器
+- [x] 录制写盘**只在 Linux 侧**（StorageManager 在 RealBenchService 内部）
 
 ### 2.5 验收
 - [ ] 浏览器 `http://lab4070/` 见实时波形（默认 30 fps 滑动）

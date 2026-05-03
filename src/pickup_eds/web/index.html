@@ -174,6 +174,69 @@ code, kbd, samp {
   letter-spacing: -0.01em;
 }
 
+/* ---------------- Tabs (Phase 2) ---------------- */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: 18px 0 8px 0;
+  flex-wrap: wrap;
+}
+.tabs button {
+  padding: 8px 18px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  transition: all 0.15s ease;
+}
+.tabs button:hover { color: var(--ink); border-color: var(--accent); }
+.tabs button.active {
+  background: var(--accent);
+  color: #0c1f10;
+  border-color: var(--accent);
+}
+body[data-active-tab="live"]   [data-tab]:not([data-tab~="live"])   { display: none !important; }
+body[data-active-tab="record"] [data-tab]:not([data-tab~="record"]) { display: none !important; }
+body[data-active-tab="scpi"]   [data-tab]:not([data-tab~="scpi"])   { display: none !important; }
+body[data-active-tab="ao"]     [data-tab]:not([data-tab~="ao"])     { display: none !important; }
+
+.bridge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+.bridge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #888;
+}
+.bridge-dot.running       { background: #7effb2; box-shadow: 0 0 6px #7effb2aa; }
+.bridge-dot.connected_idle { background: #7effb2; opacity: 0.7; }
+.bridge-dot.paused        { background: #6dd2ff; }
+.bridge-dot.reconnecting  { background: #ffd166; animation: blink 1s infinite; }
+.bridge-dot.disconnected  { background: #888; }
+.bridge-dot.error         { background: #ff6b6b; }
+@keyframes blink { 50% { opacity: 0.3; } }
+
+.daq-config { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 12px; }
+.daq-config label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-muted); }
+.daq-config select, .daq-config input { padding: 6px 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; color: var(--ink); }
+.daq-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.daq-buttons button.primary { background: var(--accent); color: #0c1f10; padding: 10px 22px; }
+.daq-buttons button { padding: 8px 18px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; font-weight: 600; }
+.daq-buttons button.stop { color: #ff6b6b; border-color: #ff6b6b66; }
+
 /* ---------------- Grid ---------------- */
 .grid {
   display: grid;
@@ -766,7 +829,7 @@ input[type="number"]:focus {
     <div class="shell">
       <header class="hero">
         <div>
-          <p class="eyebrow">pickup-material-eds / phase 2 preview</p>
+          <p class="eyebrow">pickup-material-eds / phase 2</p>
           <h1>Keithley 6514 WebUI</h1>
           <p class="lede">Built by okonfu</p>
         </div>
@@ -783,11 +846,21 @@ input[type="number"]:focus {
             <span>状态总线</span>
             <strong id="stateBadge">等待中</strong>
           </div>
+          <div class="bridge-status" id="bridgeStatus" title="Bridge to VM daq daemon">
+            <span class="bridge-dot disconnected" id="bridgeDot"></span>
+            <span id="bridgeText">桥未启用</span>
+          </div>
         </div>
       </header>
+      <nav class="tabs" id="tabs">
+        <button data-tab-btn="live" class="active">实时</button>
+        <button data-tab-btn="record">录制</button>
+        <button data-tab-btn="scpi">6514 / SCPI</button>
+        <button data-tab-btn="ao">输出 AO</button>
+      </nav>
 
       <main class="grid">
-        <section class="card control-card">
+        <section class="card control-card" data-tab="live scpi">
           <div class="card-head">
             <h2>仪器控制</h2>
             <span id="updatedAt">-</span>
@@ -844,7 +917,7 @@ input[type="number"]:focus {
           </div>
         </section>
 
-        <section class="card scope-card">
+        <section class="card scope-card" data-tab="live">
           <div class="card-head">
             <h2>实时波形</h2>
             <span id="waveLabel">0 points</span>
@@ -857,7 +930,7 @@ input[type="number"]:focus {
           <canvas id="spectrumCanvas" width="960" height="240"></canvas>
         </section>
 
-        <section class="card recording-card">
+        <section class="card recording-card" data-tab="record">
           <div class="card-head">
             <h2>录制</h2>
             <span id="recordingStateText">idle</span>
@@ -891,7 +964,7 @@ input[type="number"]:focus {
           </p>
         </section>
 
-        <section class="card dataset-card">
+        <section class="card dataset-card" data-tab="record">
           <div class="card-head">
             <h2>历史录制</h2>
             <span id="datasetCount">0 items</span>
@@ -899,7 +972,7 @@ input[type="number"]:focus {
           <div class="dataset-list" id="datasetList"></div>
         </section>
 
-        <section class="card preview-card">
+        <section class="card preview-card" data-tab="record">
           <div class="card-head">
             <h2>数据预览</h2>
             <span id="previewLabel">未选择</span>
@@ -907,7 +980,7 @@ input[type="number"]:focus {
           <canvas id="previewCanvas" width="960" height="220"></canvas>
         </section>
 
-        <section class="card scpi-card">
+        <section class="card scpi-card" data-tab="scpi">
           <div class="card-head">
             <h2>COM / SCPI 控制台</h2>
             <span id="scpiPortText">COM?-</span>
@@ -971,7 +1044,7 @@ input[type="number"]:focus {
           <div class="scpi-console" id="scpiLog"></div>
         </section>
 
-        <section class="card tutorial-card">
+        <section class="card tutorial-card" data-tab="scpi">
           <div class="card-head">
             <h2>6514 使用 / 调试教程</h2>
             <span>guide</span>
@@ -1137,6 +1210,89 @@ input[type="number"]:focus {
             </article>
           </div>
         </section>
+
+        <section class="card daq-card" data-tab="live" style="grid-column: 1;">
+          <div class="card-head"><h2>DAQ 控制</h2><span id="daqStateBadge">idle</span></div>
+          <div class="daq-config">
+            <label>采样率 (Hz)
+              <select id="daqSampleRate">
+                <option value="1000">1k</option>
+                <option value="5000" selected>5k</option>
+                <option value="10000">10k</option>
+                <option value="25000">25k</option>
+                <option value="50000">50k</option>
+              </select>
+            </label>
+            <label>通道
+              <select id="daqChannel">
+                <option value="ai0" selected>ai0</option>
+                <option value="ai1">ai1</option>
+              </select>
+            </label>
+            <label>端接
+              <select id="daqTerminal">
+                <option value="RSE" selected>RSE</option>
+                <option value="DIFF">DIFF</option>
+              </select>
+            </label>
+            <label>量程 (V)
+              <select id="daqRange">
+                <option value="10" selected>±10</option>
+                <option value="5">±5</option>
+                <option value="2">±2</option>
+                <option value="1">±1</option>
+              </select>
+            </label>
+          </div>
+          <div class="daq-buttons">
+            <button id="btnDaqRun" class="primary">▶ Run</button>
+            <button id="btnDaqPause">⏸ Pause</button>
+            <button id="btnDaqSingle">○ Single</button>
+            <button id="btnDaqStop" class="stop">■ Stop</button>
+          </div>
+          <p class="muted-line" id="daqMeta" style="margin-top:10px;font-size:11px;color:var(--ink-muted);">— · 0 samples · 0 overruns</p>
+        </section>
+
+        <section class="card ao-card" data-tab="ao" style="grid-column: 1 / -1;">
+          <div class="card-head"><h2>输出 AO (free run)</h2><span id="aoStateBadge">idle</span></div>
+          <div class="daq-config">
+            <label>通道
+              <select id="aoChannel">
+                <option value="ao0" selected>ao0</option>
+                <option value="ao1">ao1</option>
+              </select>
+            </label>
+            <label>模式
+              <select id="aoMode">
+                <option value="DC" selected>DC</option>
+                <option value="Sine">Sine</option>
+                <option value="Sweep-lin">Sweep-lin</option>
+                <option value="Sweep-log">Sweep-log</option>
+                <option value="Chirp">Chirp</option>
+                <option value="File replay" disabled>File replay (TODO)</option>
+              </select>
+            </label>
+            <label>幅度 (V)
+              <input type="number" id="aoAmp" value="1.0" step="0.1" min="-5" max="5" />
+            </label>
+            <label>频率 / 起始 (Hz)
+              <input type="number" id="aoFreq" value="1000" step="10" min="0" max="2500" />
+            </label>
+            <label>终止 (Hz, sweep/chirp)
+              <input type="number" id="aoFreqEnd" value="2000" step="10" min="0" max="2500" />
+            </label>
+            <label>时长 (s)
+              <input type="number" id="aoDur" value="5" step="0.5" min="0.1" max="3600" />
+            </label>
+          </div>
+          <div class="daq-buttons">
+            <button id="btnAoStart" class="primary">▶ 开始输出</button>
+            <button id="btnAoStop" class="stop">■ 停止</button>
+          </div>
+          <p class="muted-line" style="margin-top:10px;font-size:11px;color:var(--ink-muted);">
+            HW 同步触发：Phase 2.5 启用。File replay：Phase 3+。
+          </p>
+        </section>
       </main>
     </div>
 
@@ -1180,6 +1336,28 @@ const el = {
   waveCanvas: document.getElementById("waveCanvas"),
   spectrumCanvas: document.getElementById("spectrumCanvas"),
   previewCanvas: document.getElementById("previewCanvas"),
+  // Phase 2 additions
+  bridgeDot: document.getElementById("bridgeDot"),
+  bridgeText: document.getElementById("bridgeText"),
+  daqStateBadge: document.getElementById("daqStateBadge"),
+  aoStateBadge: document.getElementById("aoStateBadge"),
+  daqMeta: document.getElementById("daqMeta"),
+  daqSampleRate: document.getElementById("daqSampleRate"),
+  daqChannel: document.getElementById("daqChannel"),
+  daqTerminal: document.getElementById("daqTerminal"),
+  daqRange: document.getElementById("daqRange"),
+  btnDaqRun: document.getElementById("btnDaqRun"),
+  btnDaqPause: document.getElementById("btnDaqPause"),
+  btnDaqSingle: document.getElementById("btnDaqSingle"),
+  btnDaqStop: document.getElementById("btnDaqStop"),
+  aoChannel: document.getElementById("aoChannel"),
+  aoMode: document.getElementById("aoMode"),
+  aoAmp: document.getElementById("aoAmp"),
+  aoFreq: document.getElementById("aoFreq"),
+  aoFreqEnd: document.getElementById("aoFreqEnd"),
+  aoDur: document.getElementById("aoDur"),
+  btnAoStart: document.getElementById("btnAoStart"),
+  btnAoStop: document.getElementById("btnAoStop"),
 };
 
 async function api(path, options = {}) {
@@ -1560,8 +1738,113 @@ async function connectState() {
   });
 }
 
+// ─── Phase 2: tabs / bridge status / DAQ + AO buttons ──────────────
+
+function setActiveTab(name) {
+  document.body.setAttribute("data-active-tab", name);
+  document.querySelectorAll("#tabs button").forEach((b) => {
+    b.classList.toggle("active", b.dataset.tabBtn === name);
+  });
+}
+
+function bindTabs() {
+  document.querySelectorAll("#tabs button").forEach((b) => {
+    b.addEventListener("click", () => setActiveTab(b.dataset.tabBtn));
+  });
+  setActiveTab("live");
+}
+
+function renderBridgeStatus(appState) {
+  const b = appState && appState.bridge;
+  if (!b) {
+    el.bridgeDot.className = "bridge-dot disconnected";
+    el.bridgeText.textContent = "桥未启用 (sim)";
+    return;
+  }
+  el.bridgeDot.className = `bridge-dot ${b.state}`;
+  const rtt = b.rtt_ms != null ? `${b.rtt_ms.toFixed(1)}ms` : "—";
+  const seq = b.last_seq || 0;
+  el.bridgeText.textContent = `${b.state} · RTT ${rtt} · seq ${seq}`;
+}
+
+function renderDaqState(appState) {
+  const d = appState && appState.daq;
+  if (!d) return;
+  el.daqStateBadge.textContent = d.state || "idle";
+  const ch = (d.channels || []).join("+");
+  el.daqMeta.textContent = `${d.sample_rate_hz} Hz · ${ch} ${d.terminal} ±${d.range_v}V · ${d.samples_emitted || 0} samples · ${d.overruns || 0} overruns`;
+}
+
+function renderAoState(appState) {
+  const a = appState && appState.ao;
+  if (!a) return;
+  el.aoStateBadge.textContent = a.state || "idle";
+}
+
+function bindDaqButtons() {
+  const cfg = () => ({
+    sample_rate_hz: Number(el.daqSampleRate.value),
+    channels: [el.daqChannel.value],
+    terminal: el.daqTerminal.value,
+    range_v: Number(el.daqRange.value),
+  });
+  el.btnDaqRun.addEventListener("click", async () => {
+    try {
+      await submitJSON("/api/control/daq/run", cfg());
+      showToast("DAQ Run");
+    } catch (e) { showToast(`Run 失败: ${e.message}`, "error"); }
+  });
+  el.btnDaqPause.addEventListener("click", async () => {
+    try { await submitJSON("/api/control/daq/pause", {}); showToast("DAQ Pause"); }
+    catch (e) { showToast(`Pause 失败: ${e.message}`, "error"); }
+  });
+  el.btnDaqSingle.addEventListener("click", async () => {
+    try { await submitJSON("/api/control/daq/single", cfg()); showToast("DAQ Single"); }
+    catch (e) { showToast(`Single 失败: ${e.message}`, "error"); }
+  });
+  el.btnDaqStop.addEventListener("click", async () => {
+    try { await submitJSON("/api/control/daq/stop", {}); showToast("DAQ Stop"); }
+    catch (e) { showToast(`Stop 失败: ${e.message}`, "error"); }
+  });
+}
+
+function bindAoButtons() {
+  el.btnAoStart.addEventListener("click", async () => {
+    const params = {
+      amp_v: Number(el.aoAmp.value),
+      freq_hz: Number(el.aoFreq.value),
+      freq_end_hz: Number(el.aoFreqEnd.value),
+      duration_s: Number(el.aoDur.value),
+    };
+    try {
+      await submitJSON("/api/control/ao/start", {
+        mode: el.aoMode.value,
+        channel: el.aoChannel.value,
+        params,
+      });
+      showToast("AO Start");
+    } catch (e) { showToast(`AO Start 失败: ${e.message}`, "error"); }
+  });
+  el.btnAoStop.addEventListener("click", async () => {
+    try { await submitJSON("/api/control/ao/stop", {}); showToast("AO Stop"); }
+    catch (e) { showToast(`AO Stop 失败: ${e.message}`, "error"); }
+  });
+}
+
+// Patch renderState to also paint bridge / daq / ao chrome.
+const _origRenderState = renderState;
+renderState = function (appState) {
+  _origRenderState(appState);
+  renderBridgeStatus(appState);
+  renderDaqState(appState);
+  renderAoState(appState);
+};
+
 async function bootstrap() {
   bindControls();
+  bindTabs();
+  bindDaqButtons();
+  bindAoButtons();
   try {
     const appState = await api("/api/state");
     renderState(appState);

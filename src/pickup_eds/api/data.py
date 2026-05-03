@@ -5,12 +5,12 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 
-from pickup_eds.instruments.simulator import SimulatedBenchService
+from pickup_eds.instruments.base import BenchServiceProtocol
 
 router = APIRouter(prefix="/api/data", tags=["data"])
 
 
-def _service(request: Request) -> SimulatedBenchService:
+def _service(request: Request) -> BenchServiceProtocol:
     return request.app.state.service
 
 
