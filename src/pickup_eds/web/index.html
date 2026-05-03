@@ -1,0 +1,1581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Keithley 6514 WebUI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+/* ============================================================
+   Stripe Dashboard — Light, dense, indigo primary
+   Reference: stripe.com/docs, Stripe Dashboard
+   ============================================================ */
+
+:root {
+  /* Surfaces */
+  --bg:                 #f6f9fc;             /* page bg, Stripe site light gray */
+  --surface:            #ffffff;
+  --surface-alt:        #fbfbfd;             /* subtle stripe between rows */
+  --surface-sunken:     #f3f4f7;             /* canvas / code blocks */
+  --surface-hover:      #f5f6f8;
+  --line:               #e3e8ee;             /* Stripe rule line */
+  --line-strong:        #cdd5de;
+
+  /* Text */
+  --text:               #0a2540;             /* Stripe ink */
+  --text-2:             #425466;             /* secondary */
+  --text-3:             #697386;             /* tertiary / labels */
+  --text-on-primary:    #ffffff;
+
+  /* Brand — Stripe indigo */
+  --primary:            #635bff;
+  --primary-hover:      #5851e6;
+  --primary-active:     #4f47cc;
+  --primary-soft:       #efeefe;
+  --primary-soft-text:  #3d36c9;
+
+  /* Status */
+  --success:            #00875a;
+  --success-soft:       #e3fcef;
+  --warning:            #b54708;
+  --warning-soft:       #fff5e0;
+  --danger:             #cd3d64;
+  --danger-soft:        #ffe7ef;
+  --info:               #0073e6;
+  --info-soft:          #e0f0ff;
+
+  /* Type */
+  --font-sans: "Inter", "PingFang SC", "Noto Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "IBM Plex Mono", ui-monospace, monospace;
+
+  /* Shadows — Stripe uses elevation generously */
+  --shadow-xs: 0 1px 1px rgba(50,50,93,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm: 0 2px 5px -1px rgba(50,50,93,0.10), 0 1px 3px -1px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 14px -2px rgba(50,50,93,0.10), 0 2px 6px -2px rgba(0,0,0,0.06);
+  --shadow-lg: 0 13px 27px -5px rgba(50,50,93,0.18), 0 8px 16px -8px rgba(0,0,0,0.10);
+
+  /* Radius */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+  --r-xl: 12px;
+}
+
+* { box-sizing: border-box; }
+
+html, body { background: var(--bg); }
+
+body {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+code, kbd, samp {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  padding: 2px 6px;
+  border-radius: var(--r-sm);
+  background: var(--surface-sunken);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
+.shell {
+  width: min(1400px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0 64px;
+}
+
+/* ---------------- Hero / page header ---------------- */
+.hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  padding: 28px 32px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: linear-gradient(90deg, #635bff 0%, #00d4ff 50%, #635bff 100%);
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  margin: 0 0 10px;
+  font-family: var(--font-sans);
+  font-size: clamp(28px, 4vw, 44px);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.lede {
+  margin: 0;
+  max-width: 48rem;
+  color: var(--text-2);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.hero-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(110px, 1fr));
+  gap: 10px;
+  min-width: min(420px, 100%);
+}
+
+.meta-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.meta-chip span {
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.meta-chip strong {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+/* ---------------- Grid ---------------- */
+.grid {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.card {
+  padding: 22px 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-xs);
+}
+
+.scope-card,
+.dataset-card,
+.tutorial-card { grid-column: 2; }
+
+.control-card,
+.recording-card,
+.scpi-card     { grid-column: 1; }
+
+.preview-card,
+.contract-card { grid-column: 1 / -1; }
+
+.scpi-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.card-head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.card-head span {
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+}
+
+.card-subhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 22px 0 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.card-subhead h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.card-subhead span {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+/* ---------------- Group label ---------------- */
+.group { margin-bottom: 18px; }
+
+.group-title {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* ---------------- Buttons (Stripe) ---------------- */
+.pill-row,
+.action-row,
+.quick-row,
+.command-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+button,
+.dataset-actions a {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  padding: 7px 12px;
+  color: var(--text);
+  text-decoration: none;
+  background: var(--surface);
+  cursor: pointer;
+  box-shadow: var(--shadow-xs);
+  transition: background 80ms ease, border-color 80ms ease, color 80ms ease, box-shadow 80ms ease;
+  user-select: none;
+}
+button:hover,
+.dataset-actions a:hover {
+  background: var(--surface-hover);
+  border-color: var(--text-3);
+}
+button:focus-visible,
+.dataset-actions a:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(99,91,255,0.18);
+}
+button:active,
+.dataset-actions a:active {
+  background: var(--surface-sunken);
+}
+
+button.active {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary-soft-text);
+  box-shadow: var(--shadow-xs), 0 0 0 1px var(--primary) inset;
+}
+
+button.primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--text-on-primary);
+  box-shadow: 0 1px 2px rgba(99,91,255,0.3);
+}
+button.primary:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+button.primary:active {
+  background: var(--primary-active);
+}
+
+button.secondary {
+  background: var(--surface);
+  border-color: var(--warning);
+  color: var(--warning);
+}
+button.secondary:hover {
+  background: var(--warning-soft);
+}
+
+/* ---------------- Toggle list ---------------- */
+.toggle-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--r-md);
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: background 80ms ease, border-color 80ms ease;
+}
+.toggle:hover { background: var(--surface-hover); border-color: var(--line-strong); }
+.toggle span {
+  flex: 1;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* iOS-style switch */
+.toggle input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--line-strong);
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+.toggle input[type="checkbox"]::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--shadow-xs);
+  transition: left 150ms ease;
+}
+.toggle input[type="checkbox"]:checked {
+  background: var(--primary);
+}
+.toggle input[type="checkbox"]:checked::before {
+  left: 18px;
+}
+.toggle input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ---------------- Stats ---------------- */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.stats.slim { margin-top: 16px; }
+
+.stats article {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+}
+.stats article span {
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.stats article strong {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+/* ---------------- Canvas ---------------- */
+canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface-sunken);
+}
+
+/* ---------------- Form fields ---------------- */
+.form-grid { display: grid; gap: 12px; }
+
+label { display: grid; gap: 6px; }
+
+label > span {
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+input[type="text"],
+input[type="number"] {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+  transition: border-color 80ms ease, box-shadow 80ms ease;
+}
+input[type="text"]:hover,
+input[type="number"]:hover {
+  border-color: var(--text-3);
+}
+input[type="text"]:focus,
+input[type="number"]:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(99,91,255,0.18);
+}
+
+.action-row { margin-top: 14px; }
+
+.hint {
+  margin: 14px 0 0;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* ---------------- SCPI console ---------------- */
+.command-row { align-items: stretch; gap: 8px; }
+.command-row input { flex: 1 1 220px; }
+
+.quick-row { margin-top: 10px; }
+
+/* Grouped SCPI quick buttons — mimic the 6514 front-panel layout */
+.scpi-quick-groups {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.scpi-group {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-sunken);
+}
+.scpi-group-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  font-weight: 600;
+}
+.scpi-group-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.scpi-group-buttons button {
+  padding: 4px 9px;
+  font-size: 12px;
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+}
+
+.scpi-console {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  flex: 1 1 auto;
+  min-height: 200px;
+  overflow: auto;
+  padding-right: 4px;
+  align-content: start;
+}
+
+.scpi-row {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface-alt);
+}
+.scpi-row.ok    { border-left: 3px solid var(--success); }
+.scpi-row.error { border-left: 3px solid var(--danger); }
+
+.scpi-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.scpi-tag,
+.scpi-arrow {
+  color: var(--text-3);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ---------------- Datasets ---------------- */
+.dataset-list { display: grid; gap: 8px; }
+
+.dataset-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  transition: background 80ms ease, border-color 80ms ease;
+}
+.dataset-row:hover {
+  background: var(--surface-alt);
+  border-color: var(--line-strong);
+}
+
+.dataset-row div { display: grid; gap: 2px; }
+.dataset-row span {
+  color: var(--text-3);
+  font-size: 12px;
+}
+.dataset-row strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dataset-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.empty {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 13px;
+}
+
+/* ---------------- Lists ---------------- */
+.contract-list {
+  margin: 0;
+  padding-left: 22px;
+  display: grid;
+  gap: 6px;
+  line-height: 1.6;
+  color: var(--text);
+  font-size: 13.5px;
+}
+.contract-list li::marker { color: var(--primary); }
+
+/* ---------------- Tutorial ---------------- */
+.tutorial-body { display: grid; gap: 10px; }
+
+.tutorial-body article {
+  padding: 14px 18px;
+  border-radius: var(--r-md);
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+}
+
+.tutorial-body h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--text);
+}
+
+.tutorial-body p {
+  margin: 0 0 6px;
+  color: var(--text-2);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+.tutorial-body p:last-child { margin-bottom: 0; }
+
+.tutorial-body .contract-list {
+  margin: 0;
+  padding-left: 22px;
+  color: var(--text-2);
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+
+/* Reference tables inside tutorial cards */
+.tutorial-body table.scpi-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+.tutorial-body table.scpi-table th,
+.tutorial-body table.scpi-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.5;
+}
+.tutorial-body table.scpi-table th {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--line-strong);
+}
+.tutorial-body table.scpi-table tr:last-child td { border-bottom: none; }
+.tutorial-body table.scpi-table td code {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.tutorial-body table.scpi-table td.col-status {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.tutorial-body table.scpi-table td.col-status.is-button { color: var(--primary); }
+.tutorial-body table.scpi-table td.col-status.is-todo   { color: var(--warning); }
+
+.tutorial-body h3 .article-tag {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary-soft-text);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  vertical-align: middle;
+}
+
+/* ---------------- Toast ---------------- */
+.toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  min-width: 240px;
+  max-width: 480px;
+  padding: 12px 16px;
+  border-radius: var(--r-md);
+  background: var(--text);
+  color: #fff;
+  border: 1px solid var(--text);
+  box-shadow: var(--shadow-lg);
+  font-size: 13px;
+  transform: translateY(20px);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+.toast.visible { transform: translateY(0); opacity: 1; }
+.toast[data-tone="ok"]    { border-left: 4px solid var(--success); }
+.toast[data-tone="error"] { border-left: 4px solid var(--danger); }
+
+/* ---------------- Selection / scrollbar ---------------- */
+::selection {
+  background: rgba(99,91,255,0.18);
+  color: var(--text);
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 999px;
+  border: 2px solid var(--surface);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+
+/* ---------------- Responsive ---------------- */
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: 1fr; }
+  .scope-card,
+  .preview-card,
+  .dataset-card,
+  .contract-card,
+  .tutorial-card,
+  .control-card,
+  .recording-card,
+  .scpi-card { grid-column: auto; }
+
+  .hero { flex-direction: column; align-items: flex-start; }
+  .hero-meta { min-width: 0; }
+}
+@media (max-width: 640px) {
+  .hero-meta { grid-template-columns: 1fr; }
+}
+
+</style>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">pickup-material-eds / phase 2 preview</p>
+          <h1>Keithley 6514 WebUI</h1>
+          <p class="lede">Built by okonfu</p>
+        </div>
+        <div class="hero-meta">
+          <div class="meta-chip">
+            <span>模式</span>
+            <strong id="modeBadge">SIM</strong>
+          </div>
+          <div class="meta-chip">
+            <span>流状态</span>
+            <strong id="streamBadge">连接中</strong>
+          </div>
+          <div class="meta-chip">
+            <span>状态总线</span>
+            <strong id="stateBadge">等待中</strong>
+          </div>
+        </div>
+      </header>
+
+      <main class="grid">
+        <section class="card control-card">
+          <div class="card-head">
+            <h2>仪器控制</h2>
+            <span id="updatedAt">-</span>
+          </div>
+
+          <div class="group">
+            <p class="group-title">Function</p>
+            <div class="pill-row" id="functionButtons">
+              <button data-func="VOLT">VOLT</button>
+              <button data-func="CURR">CURR</button>
+              <button data-func="RES">RES</button>
+              <button data-func="CHARGE">CHARGE</button>
+            </div>
+          </div>
+
+          <div class="group">
+            <p class="group-title">Range</p>
+            <div class="pill-row" id="rangeButtons">
+              <button data-range="0.2">0.2</button>
+              <button data-range="2">2</button>
+              <button data-range="20">20</button>
+              <button data-range="200">200</button>
+            </div>
+          </div>
+
+          <div class="toggle-list">
+            <label class="toggle">
+              <input type="checkbox" id="zeroCheckToggle" />
+              <span>Zero Check</span>
+            </label>
+            <label class="toggle">
+              <input type="checkbox" id="zeroCorrectToggle" />
+              <span>Zero Correct</span>
+            </label>
+          </div>
+
+          <div class="stats">
+            <article>
+              <span>Sample Rate</span>
+              <strong id="sampleRateStat">-</strong>
+            </article>
+            <article>
+              <span>Live RMS</span>
+              <strong id="rmsStat">-</strong>
+            </article>
+            <article>
+              <span>Live Peak</span>
+              <strong id="peakStat">-</strong>
+            </article>
+            <article>
+              <span>Window</span>
+              <strong id="windowStat">-</strong>
+            </article>
+          </div>
+        </section>
+
+        <section class="card scope-card">
+          <div class="card-head">
+            <h2>实时波形</h2>
+            <span id="waveLabel">0 points</span>
+          </div>
+          <canvas id="waveCanvas" width="960" height="360"></canvas>
+          <div class="card-subhead">
+            <h3>频谱预览</h3>
+            <span>client-side FFT</span>
+          </div>
+          <canvas id="spectrumCanvas" width="960" height="240"></canvas>
+        </section>
+
+        <section class="card recording-card">
+          <div class="card-head">
+            <h2>录制</h2>
+            <span id="recordingStateText">idle</span>
+          </div>
+          <div class="form-grid">
+            <label>
+              <span>Label</span>
+              <input id="recordingLabel" type="text" value="baseline" maxlength="64" />
+            </label>
+            <label>
+              <span>Duration (s)</span>
+              <input id="recordingDuration" type="number" min="0.5" step="0.5" value="5" />
+            </label>
+          </div>
+          <div class="action-row">
+            <button class="primary" id="startRecordingBtn">开始录制</button>
+            <button class="secondary" id="stopRecordingBtn">停止录制</button>
+          </div>
+          <div class="stats slim">
+            <article>
+              <span>Samples</span>
+              <strong id="recordingSamples">0</strong>
+            </article>
+            <article>
+              <span>Last Dataset</span>
+              <strong id="lastDatasetId">-</strong>
+            </article>
+          </div>
+          <p class="hint">
+            当前是模拟源。真实链路接入时，保留这些 REST/WS 路径，替换后端 service 即可。
+          </p>
+        </section>
+
+        <section class="card dataset-card">
+          <div class="card-head">
+            <h2>历史录制</h2>
+            <span id="datasetCount">0 items</span>
+          </div>
+          <div class="dataset-list" id="datasetList"></div>
+        </section>
+
+        <section class="card preview-card">
+          <div class="card-head">
+            <h2>数据预览</h2>
+            <span id="previewLabel">未选择</span>
+          </div>
+          <canvas id="previewCanvas" width="960" height="220"></canvas>
+        </section>
+
+        <section class="card scpi-card">
+          <div class="card-head">
+            <h2>COM / SCPI 控制台</h2>
+            <span id="scpiPortText">COM?-</span>
+          </div>
+          <label>
+            <span>Command</span>
+            <div class="command-row">
+              <input id="scpiCommandInput" type="text" value="*IDN?" maxlength="256" />
+              <button class="primary" id="sendScpiBtn">发送</button>
+            </div>
+          </label>
+          <div class="scpi-quick-groups">
+            <div class="scpi-group">
+              <span class="scpi-group-label">通用 / System</span>
+              <div class="scpi-group-buttons">
+                <button data-scpi="*IDN?">*IDN?</button>
+                <button data-scpi="*RST">*RST</button>
+                <button data-scpi="*CLS">*CLS</button>
+                <button data-scpi="*ESR?">*ESR?</button>
+              </div>
+            </div>
+            <div class="scpi-group">
+              <span class="scpi-group-label">功能 / Function</span>
+              <div class="scpi-group-buttons">
+                <button data-scpi="FUNC?">FUNC?</button>
+                <button data-scpi='FUNC "VOLT"'>VOLT</button>
+                <button data-scpi='FUNC "CURR"'>CURR</button>
+                <button data-scpi='FUNC "RES"'>RES</button>
+                <button data-scpi='FUNC "CHAR"'>CHAR</button>
+              </div>
+            </div>
+            <div class="scpi-group">
+              <span class="scpi-group-label">量程 / Range</span>
+              <div class="scpi-group-buttons">
+                <button data-scpi="VOLT:RANG?">VOLT:RANG?</button>
+                <button data-scpi="CURR:RANG?">CURR:RANG?</button>
+                <button data-scpi="VOLT:RANG:AUTO ON">AUTO ON</button>
+                <button data-scpi="VOLT:RANG:AUTO OFF">AUTO OFF</button>
+              </div>
+            </div>
+            <div class="scpi-group">
+              <span class="scpi-group-label">调零 / Zero</span>
+              <div class="scpi-group-buttons">
+                <button data-scpi="SYST:ZCH ON">ZCH ON</button>
+                <button data-scpi="SYST:ZCH OFF">ZCH OFF</button>
+                <button data-scpi="SYST:ZCH?">ZCH?</button>
+                <button data-scpi="SYST:ZCOR ON">ZCOR ON</button>
+                <button data-scpi="SYST:ZCOR?">ZCOR?</button>
+                <button data-scpi="SYST:AZER OFF">AZER OFF</button>
+              </div>
+            </div>
+            <div class="scpi-group">
+              <span class="scpi-group-label">读数 / Read</span>
+              <div class="scpi-group-buttons">
+                <button data-scpi="READ?">READ?</button>
+                <button data-scpi=":INIT">INIT</button>
+                <button data-scpi="VOLT:NPLC?">NPLC?</button>
+              </div>
+            </div>
+          </div>
+          <div class="scpi-console" id="scpiLog"></div>
+        </section>
+
+        <section class="card tutorial-card">
+          <div class="card-head">
+            <h2>6514 使用 / 调试教程</h2>
+            <span>guide</span>
+          </div>
+          <div class="tutorial-body tutorial-grid">
+            <article>
+              <h3>1. 启动机器</h3>
+              <p>确认实验室主机 Dell Precision 3660 已上电、网线正常，并且能从你这边通到 <code>203-precision3660</code> / <code>10.24.32.98</code>（或 Tailscale <code>100.110.247.81</code>）。</p>
+              <p>SSH 进机：<code>ssh a203@203-precision3660</code>。WebUI 默认在 <code>:80</code>，浏览器开 <code>http://10.24.32.98</code> 即可（端口已不需要带）。</p>
+            </article>
+            <article>
+              <h3>2. 基础接线</h3>
+              <p>6514 通过 RS-232 USB 串口接主机，链路 <code>9600 / 8N1 / XonXoff / CR</code>。在远端 Linux 上是 <code>/dev/ttyUSB0</code>（pl2303）。</p>
+              <p>采集链路：6514 后面板 <code>2V ANALOG OUTPUT</code> 走 BNC 到 USB-6002，DAQ 端用 <code>AI0 DIFF</code>。传感器接 6514 三轴输入，屏蔽接 <code>COMMON</code>。线缆固定，避免摩擦电噪声。</p>
+            </article>
+            <article>
+              <h3>3. 调零接线（输入短路）</h3>
+              <p>调零阶段不要先接传感器。最稳妥的做法是给 6514 输入装三轴短路帽，或把中心导体与屏蔽短接，构造"输入短路"状态，让 <code>Zero Check</code> 和 <code>Zero Correct</code> 在已知零输入下完成。</p>
+              <p>已经接了传感器就先断开再调零。带漂移源直接做零校准会得到错的零点。</p>
+            </article>
+            <article>
+              <h3>4. 标准调零顺序</h3>
+              <ol class="contract-list">
+                <li><code>*RST</code> + <code>*CLS</code> 重置 + 清状态</li>
+                <li><code>SYST:ZCH ON</code> 进 Zero Check</li>
+                <li><code>FUNC "VOLT"</code>，再 <code>VOLT:RANG 2</code> 或 <code>20</code></li>
+                <li>关辅助：<code>VOLT:RANG:AUTO OFF</code>、<code>SYST:AZER OFF</code>、<code>AVER:STAT OFF</code></li>
+                <li><code>SYST:ZCOR ON</code> 触发零点校准</li>
+                <li><code>SYST:ZCH OFF</code> 退出，进入正常测量</li>
+              </ol>
+              <p>校完用 <code>FUNC?</code>、<code>VOLT:RANG?</code>、<code>SYST:ZCH?</code>、<code>SYST:ZCOR?</code> 回读确认。</p>
+            </article>
+            <article>
+              <h3>5. 测量前的快速自检</h3>
+              <p>SCPI 控制台按这个顺序点一遍：<code>*IDN?</code> → <code>SYST:ZCH OFF</code> → <code>FUNC?</code> → <code>VOLT:RANG?</code> → <code>READ?</code>。任意一条飘红或返回奇怪值，先排串口/状态再继续。</p>
+              <p><code>READ?</code> 返回三段 <code>&lt;reading&gt;,&lt;timestamp&gt;,&lt;status&gt;</code>，例如 <code>-7.33E-06,+1.25E+04,+0E+00</code>。Zero Check 没关掉时这条会返回空。</p>
+            </article>
+            <article>
+              <h3>6. 录制流程</h3>
+              <p>自检都过之后，在 WebUI 录制卡片填 Label 和 Duration 点开始。当前后端落盘走 <code>.npz</code>，元数据走 SQLite。</p>
+              <p>命令行裸采集：<code>python scripts/capture_freqresp.py --duration 12 --range 2 --out data/exp01/test.npy</code>。看到提示后再播激励信号。</p>
+            </article>
+            <article>
+              <h3>7. 常见错误</h3>
+              <p><strong>拿不到 <code>*IDN?</code></strong>：先怀疑 COM 口 / 波特率 / Xon/Xoff / 终止符是否还是 <code>CR</code>。<code>/dev/ttyUSB0</code> 不存在则看 <code>docs/dev-real-hardware.md §6</code>。</p>
+              <p><strong>读数飘得离谱</strong>：没短路调零、屏蔽没接 COMMON、线缆在动、量程顶满，按此顺序排。</p>
+              <p><strong>波形空</strong>：6514 → USB-6002 的 BNC 没接好，DAQ 不在差分模式，或采样率/缓冲设置异常。</p>
+            </article>
+            <article>
+              <h3>8. 后端 API 接口落位 <span class="article-tag">phase 2</span></h3>
+              <p>WebUI ↔ FastAPI ↔ 6514/DAQ 的接口契约：</p>
+              <table class="scpi-table">
+                <thead><tr><th>端点</th><th>说明</th></tr></thead>
+                <tbody>
+                  <tr><td><code>GET /api/state</code></td><td>当前整机状态</td></tr>
+                  <tr><td><code>POST /api/control/function</code></td><td>切换功能</td></tr>
+                  <tr><td><code>POST /api/control/range</code></td><td>设置量程</td></tr>
+                  <tr><td><code>POST /api/control/zero-check</code></td><td>Zero Check 开关</td></tr>
+                  <tr><td><code>POST /api/control/zero-correct</code></td><td>Zero Correct 触发</td></tr>
+                  <tr><td><code>POST /api/control/scpi/send</code></td><td>SCPI 直通（当前桥到真机）</td></tr>
+                  <tr><td><code>POST /api/recording/start</code></td><td>开始录制</td></tr>
+                  <tr><td><code>POST /api/recording/stop</code></td><td>停止录制</td></tr>
+                  <tr><td><code>GET /api/data/list</code></td><td>历史录制列表</td></tr>
+                  <tr><td><code>GET /api/data/{id}/preview</code></td><td>波形预览数据</td></tr>
+                  <tr><td><code>GET /api/data/{id}/download</code></td><td>下载原始 npz</td></tr>
+                  <tr><td><code>WS /ws/stream</code></td><td>滚动波形流</td></tr>
+                  <tr><td><code>WS /ws/state</code></td><td>状态变更推送</td></tr>
+                  <tr><td><code>WS /ws/snapshot</code></td><td>占位，待真实触发</td></tr>
+                </tbody>
+              </table>
+            </article>
+            <article>
+              <h3>9. SCPI · 通用 + 测量 + 调零 <span class="article-tag">实测可用</span></h3>
+              <p>真机全部识别。"按钮"列表示该命令是否在 SCPI 控制台下方有快速按钮。</p>
+              <table class="scpi-table">
+                <thead><tr><th>命令</th><th>说明</th><th>按钮</th></tr></thead>
+                <tbody>
+                  <tr><td><code>*IDN?</code></td><td>识别仪器与序列号</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>*RST</code></td><td>恢复 GPIB 默认</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>*CLS</code></td><td>清状态寄存器</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>*ESR?</code></td><td>查事件状态寄存器</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>FUNC?</code></td><td>查当前功能</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>FUNC "VOLT"</code></td><td>切到电压</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>FUNC "CURR"</code></td><td>切到电流</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>FUNC "RES"</code></td><td>切到电阻</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>FUNC "CHAR"</code></td><td>切到电荷</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>VOLT:RANG &lt;n&gt;</code></td><td>设量程（按 FUNC 改前缀）</td><td class="col-status">手输</td></tr>
+                  <tr><td><code>VOLT:RANG?</code></td><td>查量程（必须带 FUNC 前缀）</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>CURR:RANG?</code></td><td>查电流量程</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>VOLT:RANG:AUTO ON</code></td><td>自动量程开</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>VOLT:RANG:AUTO OFF</code></td><td>自动量程关</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>SYST:ZCH ON</code></td><td>Zero Check 开</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>SYST:ZCH OFF</code></td><td>Zero Check 关</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>SYST:ZCH?</code></td><td>查 ZCH 状态</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>SYST:ZCOR ON</code></td><td>触发零点校准</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>SYST:ZCOR?</code></td><td>查 ZCOR 状态</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>SYST:AZER OFF</code></td><td>Auto Zero 关（提速）</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>SYST:AZER?</code></td><td>查 Auto Zero 状态</td><td class="col-status">手输</td></tr>
+                  <tr><td><code>READ?</code></td><td>触发并读一笔（三段值）</td><td class="col-status is-button">有</td></tr>
+                  <tr><td><code>:INIT</code></td><td>仅触发不取数据</td><td class="col-status is-button">有</td></tr>
+                </tbody>
+              </table>
+            </article>
+            <article>
+              <h3>10. SCPI · 速率 / 滤波 / 显示 <span class="article-tag">待暴露</span></h3>
+              <p>真机都识别，UI 暂未做按钮，控制台手输即可。完整后端会把这些接进控制卡片。</p>
+              <table class="scpi-table">
+                <thead><tr><th>命令</th><th>说明</th></tr></thead>
+                <tbody>
+                  <tr><td><code>VOLT:NPLC &lt;n&gt;</code></td><td>集成时间 0.01–10 PLC（噪声 vs 速度）</td></tr>
+                  <tr><td><code>CURR:NPLC</code> / <code>RES:NPLC</code> / <code>CHAR:NPLC</code></td><td>各功能独立设置</td></tr>
+                  <tr><td><code>VOLT:NPLC?</code></td><td>查 NPLC（默认 5.00）</td></tr>
+                  <tr><td><code>DISP:DIG &lt;n&gt;</code></td><td>显示位数 4–7（默认 6）</td></tr>
+                  <tr><td><code>MED:STAT ON|OFF</code></td><td>中位数滤波开关</td></tr>
+                  <tr><td><code>MED:RANK 1-5</code></td><td>中位数滤波秩</td></tr>
+                  <tr><td><code>AVER:STAT ON|OFF</code></td><td>数字滤波开关</td></tr>
+                  <tr><td><code>AVER:COUN 1-100</code></td><td>数字滤波平均次数</td></tr>
+                  <tr><td><code>AVER:TCON MOV|REP</code></td><td>移动平均 / 重复</td></tr>
+                  <tr><td><code>CALC2:NULL:STAT ON</code></td><td>REL（基线相减）</td></tr>
+                </tbody>
+              </table>
+            </article>
+            <article>
+              <h3>11. SCPI · Buffer / Limit / Math <span class="article-tag">留给完整后端</span></h3>
+              <p>这一组与 WebUI 的 ring buffer / 录制 / 后处理重叠。建议在 WebUI 侧做，不在仪器侧（更灵活）。</p>
+              <table class="scpi-table">
+                <thead><tr><th>类别</th><th>命令</th><th>说明</th></tr></thead>
+                <tbody>
+                  <tr><td>Buffer</td><td><code>TRAC:CLE</code></td><td>清空 buffer</td></tr>
+                  <tr><td>Buffer</td><td><code>TRAC:POIN &lt;1-2500&gt;</code></td><td>设容量</td></tr>
+                  <tr><td>Buffer</td><td><code>TRAC:FEED SENS</code></td><td>数据源</td></tr>
+                  <tr><td>Buffer</td><td><code>TRAC:DATA?</code></td><td>读全部</td></tr>
+                  <tr><td>Buffer</td><td><code>FORM:ELEM READ,TIME,STAT</code></td><td>数据元素</td></tr>
+                  <tr><td>统计</td><td><code>CALC3:FORM MIN|MAX|MEAN|SDEV|PKPK</code></td><td>选统计量</td></tr>
+                  <tr><td>统计</td><td><code>CALC3:DATA?</code></td><td>读统计量</td></tr>
+                  <tr><td>Limit</td><td><code>CALC2:LIM:STAT</code></td><td>Limit 1 开关</td></tr>
+                  <tr><td>Limit</td><td><code>CALC2:LIM:LOW/UPP &lt;n&gt;</code></td><td>Limit 1 上下界</td></tr>
+                  <tr><td>Limit</td><td><code>CALC2:LIM:FAIL?</code></td><td>Limit 1 结果</td></tr>
+                  <tr><td>Limit</td><td><code>CALC2:LIM2:*</code></td><td>Limit 2 同上</td></tr>
+                  <tr><td>Math</td><td><code>CALC:FORM MXB|PERC</code></td><td>数学功能选择</td></tr>
+                  <tr><td>Math</td><td><code>CALC:KMAT:MMF/MBF/MUN</code></td><td>mX+b 的 m/b/单位</td></tr>
+                  <tr><td>Math</td><td><code>CALC:KMAT:PER &lt;n&gt;</code></td><td>Percent 参考值</td></tr>
+                  <tr><td>Math</td><td><code>CALC:STAT ON</code></td><td>开启数学</td></tr>
+                  <tr><td>Math</td><td><code>CALC:DATA?</code></td><td>读结果</td></tr>
+                  <tr><td>Guard</td><td><code>VOLT:GUAR ON</code></td><td>电压驱动屏蔽</td></tr>
+                  <tr><td>Guard</td><td><code>RES:GUAR ON</code></td><td>电阻驱动屏蔽</td></tr>
+                </tbody>
+              </table>
+            </article>
+            <article>
+              <h3>12. 完整后端实施优先级 <span class="article-tag">roadmap</span></h3>
+              <p>下次写真机 BenchService 时按这个顺序补，性价比最高（详见 <code>docs/dev-real-hardware.md §5.6</code>）：</p>
+              <table class="scpi-table">
+                <thead><tr><th>顺序</th><th>模块</th><th>命令族</th><th>理由</th></tr></thead>
+                <tbody>
+                  <tr><td>1</td><td>Auto range + NPLC</td><td><code>*:RANG:AUTO</code> · <code>*:NPLC</code></td><td>用户最常调的两个旋钮</td></tr>
+                  <tr><td>2</td><td>Filter</td><td><code>AVER:*</code> · <code>MED:*</code></td><td>噪声测试场景必需</td></tr>
+                  <tr><td>3</td><td>触发解耦</td><td><code>:INIT</code> + <code>:READ?</code> 拆开</td><td>让 WebUI 触发与读取分离</td></tr>
+                  <tr><td>4</td><td>Buffer</td><td><code>TRAC:*</code></td><td>仅当要替换 ring buffer 才碰</td></tr>
+                  <tr><td>5</td><td>Math / Limit</td><td><code>CALC:*</code> · <code>CALC2:LIM:*</code></td><td>仪器端 vs WebUI 后处理，多数场景后者更灵活</td></tr>
+                </tbody>
+              </table>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <aside class="toast" id="toast"></aside>
+<script>
+const state = {
+  appState: null,
+  datasets: [],
+  liveFrame: { time_s: [], value: [] },
+  autoPreviewedId: null,
+  scpiLog: [],
+};
+
+const el = {
+  modeBadge: document.getElementById("modeBadge"),
+  streamBadge: document.getElementById("streamBadge"),
+  stateBadge: document.getElementById("stateBadge"),
+  updatedAt: document.getElementById("updatedAt"),
+  sampleRateStat: document.getElementById("sampleRateStat"),
+  rmsStat: document.getElementById("rmsStat"),
+  peakStat: document.getElementById("peakStat"),
+  windowStat: document.getElementById("windowStat"),
+  waveLabel: document.getElementById("waveLabel"),
+  recordingStateText: document.getElementById("recordingStateText"),
+  recordingSamples: document.getElementById("recordingSamples"),
+  lastDatasetId: document.getElementById("lastDatasetId"),
+  datasetCount: document.getElementById("datasetCount"),
+  datasetList: document.getElementById("datasetList"),
+  previewLabel: document.getElementById("previewLabel"),
+  scpiPortText: document.getElementById("scpiPortText"),
+  scpiCommandInput: document.getElementById("scpiCommandInput"),
+  sendScpiBtn: document.getElementById("sendScpiBtn"),
+  scpiLog: document.getElementById("scpiLog"),
+  toast: document.getElementById("toast"),
+  startRecordingBtn: document.getElementById("startRecordingBtn"),
+  stopRecordingBtn: document.getElementById("stopRecordingBtn"),
+  recordingLabel: document.getElementById("recordingLabel"),
+  recordingDuration: document.getElementById("recordingDuration"),
+  zeroCheckToggle: document.getElementById("zeroCheckToggle"),
+  zeroCorrectToggle: document.getElementById("zeroCorrectToggle"),
+  waveCanvas: document.getElementById("waveCanvas"),
+  spectrumCanvas: document.getElementById("spectrumCanvas"),
+  previewCanvas: document.getElementById("previewCanvas"),
+};
+
+async function api(path, options = {}) {
+  const response = await fetch(path, {
+    headers: { "Content-Type": "application/json" },
+    ...options,
+  });
+  if (!response.ok) {
+    const payload = await response.text();
+    throw new Error(payload || response.statusText);
+  }
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+  return response.text();
+}
+
+function showToast(message, tone = "normal") {
+  el.toast.textContent = message;
+  el.toast.dataset.tone = tone;
+  el.toast.classList.add("visible");
+  window.clearTimeout(showToast.timer);
+  showToast.timer = window.setTimeout(() => {
+    el.toast.classList.remove("visible");
+  }, 2400);
+}
+
+function formatNumber(value, digits = 4) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "-";
+  }
+  return Number(value).toFixed(digits);
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function setActiveButtons(containerId, activeValue, key) {
+  const buttons = document.querySelectorAll(`#${containerId} button`);
+  buttons.forEach((button) => {
+    button.classList.toggle("active", button.dataset[key] === String(activeValue));
+  });
+}
+
+function renderState(appState) {
+  state.appState = appState;
+  el.modeBadge.textContent = "SIM";
+  el.updatedAt.textContent = new Date(appState.updated_at).toLocaleString();
+  el.sampleRateStat.textContent = `${appState.daq.sample_rate_hz} Hz`;
+  el.rmsStat.textContent = formatNumber(appState.daq.live_rms);
+  el.peakStat.textContent = formatNumber(appState.daq.live_peak);
+  el.windowStat.textContent = `${formatNumber(appState.daq.display_window_s, 1)} s`;
+  el.scpiPortText.textContent = appState.scpi_port || "COM?-";
+  el.recordingStateText.textContent = appState.recording.active
+    ? `recording: ${appState.recording.label}`
+    : "idle";
+  el.recordingSamples.textContent = String(appState.recording.sample_count);
+  el.lastDatasetId.textContent = appState.recording.last_dataset_id || "-";
+  el.zeroCheckToggle.checked = appState.control.zero_check;
+  el.zeroCorrectToggle.checked = appState.control.zero_correct;
+  setActiveButtons("functionButtons", appState.control.function, "func");
+  setActiveButtons("rangeButtons", appState.control.range, "range");
+  renderScpiLog(appState.scpi_log || []);
+  renderDatasets(appState.datasets || []);
+  if (
+    appState.recording.last_dataset_id &&
+    appState.recording.last_dataset_id !== state.autoPreviewedId
+  ) {
+    state.autoPreviewedId = appState.recording.last_dataset_id;
+    previewDataset(appState.recording.last_dataset_id);
+  }
+}
+
+function renderScpiLog(items) {
+  state.scpiLog = items;
+  if (!items.length) {
+    el.scpiLog.innerHTML = `<p class="empty">还没有命令记录。</p>`;
+    return;
+  }
+  el.scpiLog.innerHTML = items
+    .map(
+      (item) => `
+        <article class="scpi-row ${item.ok ? "ok" : "error"}">
+          <div class="scpi-line">
+            <span class="scpi-tag">${escapeHtml(item.port)}</span>
+            <code>${escapeHtml(item.command)}</code>
+          </div>
+          <div class="scpi-line">
+            <span class="scpi-arrow">←</span>
+            <code>${escapeHtml(item.response)}</code>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+}
+
+function renderDatasets(items) {
+  state.datasets = items;
+  el.datasetCount.textContent = `${items.length} items`;
+  if (!items.length) {
+    el.datasetList.innerHTML = `<p class="empty">还没有录制数据。</p>`;
+    return;
+  }
+  el.datasetList.innerHTML = items
+    .map(
+      (item) => `
+        <article class="dataset-row">
+          <div>
+            <strong>${escapeHtml(item.label)}</strong>
+            <span>${escapeHtml(new Date(item.created_at).toLocaleString())}</span>
+          </div>
+          <div>
+            <span>${item.sample_count} samples</span>
+            <span>${formatNumber(item.duration_s, 2)} s</span>
+          </div>
+          <div class="dataset-actions">
+            <button data-preview="${escapeHtml(item.id)}">预览</button>
+            <a href="/api/data/${encodeURIComponent(item.id)}/download">下载</a>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+  document.querySelectorAll("[data-preview]").forEach((button) => {
+    button.addEventListener("click", () => previewDataset(button.dataset.preview));
+  });
+}
+
+function drawSeries(canvas, xs, ys, { accent = "#7effb2", fill = true } = {}) {
+  const ctx = canvas.getContext("2d");
+  const width = canvas.width;
+  const height = canvas.height;
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "#09131a";
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.strokeStyle = "rgba(255,255,255,0.08)";
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 6; i += 1) {
+    const y = (height / 6) * i;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+  }
+
+  if (!xs.length || !ys.length) {
+    return;
+  }
+
+  const minX = xs[0];
+  const maxX = xs[xs.length - 1];
+  let minY = Math.min(...ys);
+  let maxY = Math.max(...ys);
+  if (Math.abs(maxY - minY) < 1e-9) {
+    minY -= 1;
+    maxY += 1;
+  }
+
+  const xScale = (value) => ((value - minX) / (maxX - minX || 1)) * width;
+  const yScale = (value) => height - ((value - minY) / (maxY - minY || 1)) * height;
+
+  if (fill) {
+    const gradient = ctx.createLinearGradient(0, 0, 0, height);
+    gradient.addColorStop(0, "rgba(126,255,178,0.26)");
+    gradient.addColorStop(1, "rgba(126,255,178,0)");
+    ctx.beginPath();
+    ctx.moveTo(xScale(xs[0]), height);
+    ys.forEach((value, index) => {
+      ctx.lineTo(xScale(xs[index]), yScale(value));
+    });
+    ctx.lineTo(xScale(xs[xs.length - 1]), height);
+    ctx.closePath();
+    ctx.fillStyle = gradient;
+    ctx.fill();
+  }
+
+  ctx.beginPath();
+  ys.forEach((value, index) => {
+    const x = xScale(xs[index]);
+    const y = yScale(value);
+    if (index === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  });
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function computeSpectrum(values) {
+  const windowSize = Math.min(256, values.length);
+  if (windowSize < 32) {
+    return { freqs: [], mags: [] };
+  }
+  const slice = values.slice(values.length - windowSize);
+  const freqs = [];
+  const mags = [];
+  for (let k = 1; k < 64; k += 1) {
+    let real = 0;
+    let imag = 0;
+    for (let n = 0; n < windowSize; n += 1) {
+      const angle = (2 * Math.PI * k * n) / windowSize;
+      real += slice[n] * Math.cos(angle);
+      imag -= slice[n] * Math.sin(angle);
+    }
+    freqs.push(k);
+    mags.push(Math.sqrt(real * real + imag * imag) / windowSize);
+  }
+  return { freqs, mags };
+}
+
+function renderLiveFrame(frame) {
+  state.liveFrame = frame;
+  el.waveLabel.textContent = `${frame.value.length} points`;
+  drawSeries(el.waveCanvas, frame.time_s, frame.value, { accent: "#7effb2", fill: true });
+  const spectrum = computeSpectrum(frame.value);
+  drawSeries(el.spectrumCanvas, spectrum.freqs, spectrum.mags, {
+    accent: "#ffb24d",
+    fill: false,
+  });
+}
+
+async function previewDataset(datasetId) {
+  try {
+    const payload = await api(`/api/data/${datasetId}/preview`);
+    el.previewLabel.textContent = `${payload.label} / ${datasetId}`;
+    drawSeries(el.previewCanvas, payload.time_s, payload.value, {
+      accent: "#59b8ff",
+      fill: false,
+    });
+  } catch (error) {
+    showToast(`预览失败: ${error.message}`, "error");
+  }
+}
+
+async function submitJSON(path, body) {
+  return api(path, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+function bindControls() {
+  document.querySelectorAll("#functionButtons button").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        await submitJSON("/api/control/function", { func: button.dataset.func });
+        showToast(`Function -> ${button.dataset.func}`);
+      } catch (error) {
+        showToast(`切换失败: ${error.message}`, "error");
+      }
+    });
+  });
+
+  document.querySelectorAll("#rangeButtons button").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        await submitJSON("/api/control/range", { range: Number(button.dataset.range) });
+        showToast(`Range -> ${button.dataset.range}`);
+      } catch (error) {
+        showToast(`切换失败: ${error.message}`, "error");
+      }
+    });
+  });
+
+  el.zeroCheckToggle.addEventListener("change", async () => {
+    try {
+      await submitJSON("/api/control/zero-check", { on: el.zeroCheckToggle.checked });
+      showToast(`Zero Check -> ${el.zeroCheckToggle.checked ? "on" : "off"}`);
+    } catch (error) {
+      showToast(`切换失败: ${error.message}`, "error");
+    }
+  });
+
+  el.zeroCorrectToggle.addEventListener("change", async () => {
+    try {
+      await submitJSON("/api/control/zero-correct", { on: el.zeroCorrectToggle.checked });
+      showToast(`Zero Correct -> ${el.zeroCorrectToggle.checked ? "on" : "off"}`);
+    } catch (error) {
+      showToast(`切换失败: ${error.message}`, "error");
+    }
+  });
+
+  el.startRecordingBtn.addEventListener("click", async () => {
+    try {
+      await submitJSON("/api/recording/start", {
+        label: el.recordingLabel.value.trim() || "baseline",
+        duration_s: Number(el.recordingDuration.value),
+      });
+      showToast("录制已开始", "ok");
+    } catch (error) {
+      showToast(`开始失败: ${error.message}`, "error");
+    }
+  });
+
+  el.stopRecordingBtn.addEventListener("click", async () => {
+    try {
+      const payload = await submitJSON("/api/recording/stop", {});
+      if (payload.dataset) {
+        showToast(`录制已保存: ${payload.dataset.label}`, "ok");
+        await previewDataset(payload.dataset.id);
+      } else {
+        showToast("当前没有活动录制", "error");
+      }
+    } catch (error) {
+      showToast(`停止失败: ${error.message}`, "error");
+    }
+  });
+
+  document.querySelectorAll("[data-scpi]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      el.scpiCommandInput.value = button.dataset.scpi;
+      await sendScpiCommand();
+    });
+  });
+
+  el.sendScpiBtn.addEventListener("click", sendScpiCommand);
+  el.scpiCommandInput.addEventListener("keydown", async (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      await sendScpiCommand();
+    }
+  });
+}
+
+async function sendScpiCommand() {
+  const command = el.scpiCommandInput.value.trim();
+  if (!command) {
+    return;
+  }
+  try {
+    const payload = await submitJSON("/api/control/scpi/send", { command });
+    renderState(payload.state);
+    showToast(`${command} -> ${payload.entry.response}`, payload.ok ? "ok" : "error");
+  } catch (error) {
+    showToast(`SCPI 发送失败: ${error.message}`, "error");
+  }
+}
+
+async function connectStream() {
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  const ws = new WebSocket(`${protocol}://${window.location.host}/ws/stream`);
+  ws.addEventListener("open", () => {
+    el.streamBadge.textContent = "已连接";
+  });
+  ws.addEventListener("message", (event) => {
+    renderLiveFrame(JSON.parse(event.data));
+  });
+  ws.addEventListener("close", () => {
+    el.streamBadge.textContent = "重连中";
+    window.setTimeout(connectStream, 1200);
+  });
+}
+
+async function connectState() {
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  const ws = new WebSocket(`${protocol}://${window.location.host}/ws/state`);
+  ws.addEventListener("open", () => {
+    el.stateBadge.textContent = "已连接";
+  });
+  ws.addEventListener("message", (event) => {
+    renderState(JSON.parse(event.data));
+  });
+  ws.addEventListener("close", () => {
+    el.stateBadge.textContent = "重连中";
+    window.setTimeout(connectState, 1200);
+  });
+}
+
+async function bootstrap() {
+  bindControls();
+  try {
+    const appState = await api("/api/state");
+    renderState(appState);
+    const datasets = await api("/api/data/list");
+    renderDatasets(datasets.items || []);
+    connectStream();
+    connectState();
+  } catch (error) {
+    showToast(`启动失败: ${error.message}`, "error");
+  }
+}
+
+bootstrap();
+
+</script>
+  </body>
+</html>

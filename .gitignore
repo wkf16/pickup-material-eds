@@ -17,6 +17,7 @@ data/
 # Plots & generated artifacts
 *.png
 !docs/**/*.png
+!src/pickup_eds/web/favicon.png
 
 # OS
 .DS_Store

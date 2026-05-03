@@ -1,0 +1,16 @@
+[Unit]
+Description=pickup-material-eds WebUI
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/a203/pickup-material-eds-webui
+Environment=PICKUP_EDS_HOST=0.0.0.0
+Environment=PICKUP_EDS_PORT=8000
+ExecStart=/home/a203/pickup-material-eds-webui/.venv/bin/python -m uvicorn pickup_eds.api.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

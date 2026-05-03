@@ -1,0 +1,22 @@
+# udev rule for the Prolific 067b:23a3 (ATEN) USB-serial bridge that
+# carries Keithley 6514 SCPI traffic.
+#
+# Goal: let the lab user (member of `uucp` on Manjaro / Arch) open
+# /dev/ttyUSB0 without sudo, so the WebUI backend (running as that
+# user) can talk to the instrument.
+#
+# Install:
+#   sudo cp deploy/99-keithley-6514.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules
+#   sudo udevadm trigger
+#   # If the bridge is already plugged in, replug it once so the new
+#   # rule applies (or `udevadm trigger --action=add`).
+#
+# Verify: `ls -l /dev/ttyUSB0` should show group `uucp`, mode 0660.
+#
+# On distros where the conventional serial group is `dialout` (Ubuntu/
+# Debian), change GROUP="uucp" → GROUP="dialout" and add the user
+# with `sudo usermod -aG dialout <user>`.
+
+SUBSYSTEM=="tty", ATTRS{idVendor}=="067b", ATTRS{idProduct}=="23a3", \
+    GROUP="uucp", MODE="0660", SYMLINK+="keithley6514", TAG+="uaccess"
