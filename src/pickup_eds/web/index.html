@@ -2112,6 +2112,30 @@ function bindDaqButtons() {
     try { await submitJSON("/api/control/daq/stop", {}); showToast("DAQ Stop"); }
     catch (e) { showToast(`Stop 失败: ${e.message}`, "error"); }
   });
+  // Live-rebind: changing any DAQ config selector while a task is
+  // running auto-stops + re-runs with the new config so user doesn't
+  // have to manually click Stop then Run.
+  const isDaqRunning = () =>
+    state.appState && state.appState.daq && state.appState.daq.state === "running";
+  const restartIfRunning = async (label) => {
+    if (!isDaqRunning()) return;
+    try {
+      await submitJSON("/api/control/daq/stop", {});
+      await submitJSON("/api/control/daq/run", cfg());
+      showToast(`DAQ 重启: ${label}`);
+    } catch (e) {
+      showToast(`重启失败: ${e.message}`, "error");
+    }
+  };
+  for (const [el_, label] of [
+    [el.daqSampleRate, "采样率"],
+    [el.daqChannel, "通道"],
+    [el.daqTerminal, "端接"],
+    [el.daqRange, "量程"],
+  ]) {
+    if (!el_) continue;
+    el_.addEventListener("change", () => restartIfRunning(`${label}=${el_.value}`));
+  }
 }
 
 function bindAoButtons() {
