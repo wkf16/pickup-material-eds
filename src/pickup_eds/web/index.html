@@ -698,11 +698,14 @@ input[type="number"]:focus {
   color: var(--text);
 }
 
-.dataset-actions {
+.dataset-row .dataset-actions {
   display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
 }
+.dataset-row .dataset-actions > * { flex: 0 0 auto; }
 
 .empty {
   margin: 0;
