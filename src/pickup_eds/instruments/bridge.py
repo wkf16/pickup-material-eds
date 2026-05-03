@@ -613,26 +613,36 @@ class RealBenchService:
 
     # ─── Stream frame for /ws/stream (browser-facing) ───────────
 
+    # See SimulatedBenchService._PRE_ROLL_S for rationale.
+    _PRE_ROLL_S = 0.5
+
     async def stream_frame(self) -> dict[str, object]:
-        max_samples = int(self._sample_rate_hz * self._display_window_s)
+        sr = self._sample_rate_hz
+        visible_s = self._display_window_s
+        total_s = visible_s + self._PRE_ROLL_S
+        max_samples = int(sr * total_s)
         times, values = self._buffer.tail(max_samples=max_samples)
         if len(times) == 0:
             return {
                 "seq": self._stream_seq,
-                "sample_rate_hz": self._sample_rate_hz,
+                "sample_rate_hz": sr,
                 "time_s": [],
                 "value": [],
+                "pre_roll_s": 0.0,
                 "rms": 0.0,
                 "peak": 0.0,
             }
-        times = times - times[0]
+        actual_dur = float(times[-1] - times[0]) if len(times) > 1 else 0.0
+        actual_pre_roll = max(0.0, min(self._PRE_ROLL_S, actual_dur - visible_s))
+        times = times - times[0] - actual_pre_roll
         times, values = decimate_pair(times, values, max_points=self._stream_points)
         self._stream_seq += 1
         return {
             "seq": self._stream_seq,
-            "sample_rate_hz": self._sample_rate_hz,
+            "sample_rate_hz": sr,
             "time_s": times.tolist(),
             "value": values.tolist(),
+            "pre_roll_s": actual_pre_roll,
             "rms": round(self._last_rms, 6),
             "peak": round(self._last_peak, 6),
         }

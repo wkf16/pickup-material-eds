@@ -353,26 +353,42 @@ class SimulatedBenchService:
         await self._broadcast_state()
         return await self.snapshot_state()
 
+    # Extra samples before the visible window so client-side filters
+    # (Butterworth LP, FFT windowing, etc.) have data to warm up on
+    # before the displayed segment starts. 0.5 s covers cutoffs down to
+    # ~1 Hz with comfortable margin (5 τ ≈ 0.16 s for a 4th-order LP).
+    _PRE_ROLL_S = 0.5
+
     async def stream_frame(self) -> dict[str, object]:
-        max_samples = int(self._settings.sample_rate_hz * self._display_window_s)
+        sr = self._settings.sample_rate_hz
+        visible_s = self._display_window_s
+        total_s = visible_s + self._PRE_ROLL_S
+        max_samples = int(sr * total_s)
         times, values = self._buffer.tail(max_samples=max_samples)
         if len(times) == 0:
             return {
                 "seq": self._stream_seq,
-                "sample_rate_hz": self._settings.sample_rate_hz,
+                "sample_rate_hz": sr,
                 "time_s": [],
                 "value": [],
+                "pre_roll_s": 0.0,
                 "rms": 0.0,
                 "peak": 0.0,
             }
-        times = times - times[0]
+        # If the buffer has less than total_s yet (just started), shrink
+        # the pre-roll proportionally so the visible window stays ≥ 0.
+        actual_dur = float(times[-1] - times[0]) if len(times) > 1 else 0.0
+        actual_pre_roll = max(0.0, min(self._PRE_ROLL_S, actual_dur - visible_s))
+        # t = 0 marks the start of the visible window; pre-roll is < 0.
+        times = times - times[0] - actual_pre_roll
         times, values = decimate_pair(times, values, max_points=self._stream_points)
         self._stream_seq += 1
         return {
             "seq": self._stream_seq,
-            "sample_rate_hz": self._settings.sample_rate_hz,
+            "sample_rate_hz": sr,
             "time_s": times.tolist(),
             "value": values.tolist(),
+            "pre_roll_s": actual_pre_roll,
             "rms": round(self._last_rms, 6),
             "peak": round(self._last_peak, 6),
         }

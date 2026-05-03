@@ -1819,7 +1819,15 @@ function butter4LP(samples, fc, fs) {
     const b2 = b0;
     const a1 = 2 * (KK - 1) * norm;
     const a2 = (1 - K / Q + KK) * norm;
-    let z1 = 0, z2 = 0;
+    // Steady-state initial conditions assuming the filter was fed
+    // out[0] forever in the past. For a unity-DC-gain biquad the
+    // steady-state output equals the input, so z1 / z2 collapse to
+    // simple linear functions of out[0]. Without this the filter shows
+    // a step-response transient (dip from 0 → signal level) at the
+    // start of every frame.
+    const xss = out[0];
+    let z2 = (b2 - a2) * xss;
+    let z1 = (b1 - a1) * xss + z2;
     for (let i = 0; i < n; i++) {
       const x = out[i];
       const y = b0 * x + z1;
@@ -1835,9 +1843,18 @@ function renderLiveFrame(frame) {
   state.liveFrame = frame;
   el.waveLabel.textContent = `${frame.value.length} pts · ${frame.sample_rate_hz} Hz`;
   const yMode = (el.yScaleMode && el.yScaleMode.value) || "auto";
-  drawScope(el.waveCanvas, frame.time_s, frame.value, { accent: "#7effb2", yMode });
 
-  // Filter scope (below)
+  // Find where the visible window starts (pre-roll has time_s < 0).
+  // Only the filter sees the pre-roll — both scopes display the visible portion.
+  let v0 = 0;
+  if (frame.pre_roll_s && frame.pre_roll_s > 0) {
+    while (v0 < frame.time_s.length && frame.time_s[v0] < 0) v0++;
+  }
+  const visTime = v0 > 0 ? frame.time_s.slice(v0) : frame.time_s;
+  const visRaw = v0 > 0 ? frame.value.slice(v0) : frame.value;
+
+  drawScope(el.waveCanvas, visTime, visRaw, { accent: "#7effb2", yMode });
+
   if (!el.filterCanvas) return;
   const mode = el.filterMode ? el.filterMode.value : "off";
   if (mode === "off" || frame.value.length === 0) {
@@ -1847,12 +1864,14 @@ function renderLiveFrame(frame) {
   }
   const fs = frame.sample_rate_hz || 1000;
   const fc = Math.max(0.1, Number(el.filterCutoff && el.filterCutoff.value) || 50);
-  // Clamp cutoff below Nyquist with margin
   const fcSafe = Math.min(fc, fs * 0.45);
-  const filtered = butter4LP(frame.value, fcSafe, fs);
-  drawScope(el.filterCanvas, frame.time_s, filtered, { accent: "#6dd2ff", yMode });
+  // Filter the FULL frame including pre-roll, then drop pre-roll from display.
+  const filteredAll = butter4LP(frame.value, fcSafe, fs);
+  const visFiltered = v0 > 0 ? filteredAll.slice(v0) : filteredAll;
+  drawScope(el.filterCanvas, visTime, visFiltered, { accent: "#6dd2ff", yMode });
   if (el.filterInfo) {
-    el.filterInfo.textContent = `LP ${fcSafe.toFixed(fcSafe >= 10 ? 0 : 1)} Hz · fs ${fs} Hz`;
+    const tag = frame.pre_roll_s > 0 ? ` · pre-roll ${(frame.pre_roll_s * 1000).toFixed(0)} ms` : "";
+    el.filterInfo.textContent = `LP ${fcSafe.toFixed(fcSafe >= 10 ? 0 : 1)} Hz · fs ${fs} Hz${tag}`;
   }
 }
 
