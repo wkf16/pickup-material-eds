@@ -860,7 +860,7 @@ input[type="number"]:focus {
       </nav>
 
       <main class="grid">
-        <section class="card control-card" data-tab="live scpi">
+        <section class="card control-card" data-tab="live">
           <div class="card-head">
             <h2>仪器控制</h2>
             <span id="updatedAt">-</span>
@@ -943,6 +943,13 @@ input[type="number"]:focus {
             <label>
               <span>Duration (s)</span>
               <input id="recordingDuration" type="number" min="0.5" step="0.5" value="5" />
+            </label>
+            <label>
+              <span>Format</span>
+              <select id="recordingFormat">
+                <option value="npz" selected>.npz (NumPy)</option>
+                <option value="csv">.csv (Excel-friendly)</option>
+              </select>
             </label>
           </div>
           <div class="action-row">
@@ -1331,6 +1338,7 @@ const el = {
   stopRecordingBtn: document.getElementById("stopRecordingBtn"),
   recordingLabel: document.getElementById("recordingLabel"),
   recordingDuration: document.getElementById("recordingDuration"),
+  recordingFormat: document.getElementById("recordingFormat"),
   zeroCheckToggle: document.getElementById("zeroCheckToggle"),
   zeroCorrectToggle: document.getElementById("zeroCorrectToggle"),
   waveCanvas: document.getElementById("waveCanvas"),
@@ -1657,6 +1665,7 @@ function bindControls() {
       await submitJSON("/api/recording/start", {
         label: el.recordingLabel.value.trim() || "baseline",
         duration_s: Number(el.recordingDuration.value),
+        format: el.recordingFormat ? el.recordingFormat.value : "npz",
       });
       showToast("录制已开始", "ok");
     } catch (error) {

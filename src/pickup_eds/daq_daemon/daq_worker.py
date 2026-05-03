@@ -118,9 +118,6 @@ class DaqWorker:
 
         block = cfg.block_or_default()
         n_ch = len(cfg.channels)
-        # Pre-allocated read buffer, channel-major: nidaqmx.read_into
-        # expects shape (n_ch, n_samples_per_ch).
-        buf = np.zeros((n_ch, block), dtype=np.float64)
         term = TerminalConfiguration.RSE if cfg.terminal == "RSE" else TerminalConfiguration.DIFFERENTIAL
 
         try:
@@ -140,21 +137,34 @@ class DaqWorker:
                 # Hard upper bound on per-call wait so the stop_event is
                 # responsive: waiting forever blocks shutdown.
                 wait_timeout_s = max(0.5, (block / cfg.sample_rate_hz) * 4.0)
-                logger.info("daq worker started: %d S/s × %d ch, block=%d, term=%s, range=±%g",
+                logger.info("daq worker starting: %d S/s × %d ch, block=%d, term=%s, range=±%g",
                             cfg.sample_rate_hz, n_ch, block, cfg.terminal, cfg.range_v)
+                task.start()
                 while not self._stop_event.is_set():
                     try:
-                        n = task.in_stream.read_into(buf, samples_per_channel=block, timeout=wait_timeout_s)
+                        # Returns:
+                        #   single channel  -> list[float] of length n
+                        #   multi-channel   -> list[list[float]] shape (n_ch, n)
+                        data = task.read(
+                            number_of_samples_per_channel=block,
+                            timeout=wait_timeout_s,
+                        )
                     except Exception as exc:
-                        # nidaqmx raises DaqReadError on overrun; record and keep going.
+                        # DaqReadError on overrun: log and keep going.
                         self.last_error = f"read error: {exc}"
                         self.overruns += 1
-                        logger.warning("read_into raised: %s", exc)
+                        logger.warning("task.read raised: %s", exc)
                         continue
+                    if n_ch == 1:
+                        arr = np.asarray(data, dtype=np.float32)
+                        n = arr.size
+                        interleaved = arr
+                    else:
+                        arr = np.asarray(data, dtype=np.float32)  # (n_ch, n)
+                        n = arr.shape[1]
+                        interleaved = arr.T.reshape(-1)
                     if n <= 0:
                         continue
-                    # Interleave channels: (n_ch, n) -> (n*n_ch,) C-order
-                    interleaved = buf[:, :n].T.astype(np.float32, copy=False).reshape(-1)
                     self.seq_counter += 1
                     self.samples_emitted += n
                     frame = FrameTuple(

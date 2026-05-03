@@ -55,9 +55,12 @@ async def lifespan(app: FastAPI):
     # 1. NI-DAQmx sanity (with a single PnP rescan if nothing visible).
     if wait_for_nidaq(retries=3):
         from pickup_eds.daq_daemon.discovery import find_usb6002
+        from pickup_eds.daq_daemon.recovery import reset_device
         try:
             STATE.daq_device = find_usb6002()
             logger.info("DAQ device: %s", STATE.daq_device)
+            # Clear any stale DMA state from a previous unclean shutdown.
+            reset_device(STATE.daq_device)
             STATE.worker = DaqWorker(STATE.daq_device)
         except Exception as exc:
             STATE.last_error = f"DAQ discovery failed: {exc}"

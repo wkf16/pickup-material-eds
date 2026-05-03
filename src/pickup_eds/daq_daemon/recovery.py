@@ -43,3 +43,19 @@ def wait_for_nidaq(retries: int = 3, sleep_s: float = 4.0) -> bool:
             kick_pnpunum()
             time.sleep(sleep_s)
     return False
+
+
+def reset_device(device_name: str) -> None:
+    """Reset device state.
+
+    A previous task that wasn't cleanly stopped (e.g. daemon process killed
+    forcefully) can leave the device in an aborted-DMA state, where the
+    next ``task.start()`` raises ``-50405 No transfer is in progress``.
+    Calling reset_device() clears that state.
+    """
+    try:
+        import nidaqmx  # type: ignore[import-not-found]
+        nidaqmx.system.Device(device_name).reset_device()
+        logger.info("reset_device(%s) ok", device_name)
+    except Exception as exc:
+        logger.warning("reset_device(%s) failed: %s", device_name, exc)

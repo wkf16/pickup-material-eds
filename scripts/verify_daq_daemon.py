@@ -36,7 +36,7 @@ HEADER_SIZE = struct.calcsize(FRAME_HEADER_FMT)
 
 async def _verify_60s(base_url: str, ws_url: str, duration: float, sample_rate: int) -> dict:
     print(f">> POST /api/daq/start sample_rate={sample_rate} channels=ai0 RSE ±10V")
-    async with httpx.AsyncClient(timeout=10.0) as http:
+    async with httpx.AsyncClient(timeout=10.0, trust_env=False) as http:
         r = await http.post(
             f"{base_url}/api/daq/start",
             json={"sample_rate_hz": sample_rate, "channels": ["ai0"], "terminal": "RSE", "range_v": 10.0},
@@ -72,7 +72,7 @@ async def _verify_60s(base_url: str, ws_url: str, duration: float, sample_rate: 
                 frames += 1
                 bytes_total += len(raw)
     finally:
-        async with httpx.AsyncClient(timeout=10.0) as http:
+        async with httpx.AsyncClient(timeout=10.0, trust_env=False) as http:
             r = await http.post(f"{base_url}/api/daq/stop")
             r.raise_for_status()
             print(f">> POST /api/daq/stop -> {r.json()}")
@@ -110,7 +110,7 @@ async def main() -> int:
     # 1. /api/health
     print(">> GET /api/health")
     try:
-        async with httpx.AsyncClient(timeout=10.0) as http:
+        async with httpx.AsyncClient(timeout=10.0, trust_env=False) as http:
             r = await http.get(f"{base_url}/api/health")
             r.raise_for_status()
             health = r.json()
@@ -123,7 +123,7 @@ async def main() -> int:
     # 2. SCPI *IDN?
     print(">> POST /api/scpi/send '*IDN?'")
     try:
-        async with httpx.AsyncClient(timeout=10.0) as http:
+        async with httpx.AsyncClient(timeout=10.0, trust_env=False) as http:
             r = await http.post(f"{base_url}/api/scpi/send", json={"cmd": "*IDN?"})
             r.raise_for_status()
             scpi = r.json()

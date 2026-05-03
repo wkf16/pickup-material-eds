@@ -18,7 +18,7 @@ async def start_recording(
     request: Request,
 ) -> dict[str, object]:
     try:
-        state = await _service(request).start_recording(payload.label, payload.duration_s)
+        state = await _service(request).start_recording(payload.label, payload.duration_s, payload.format)
     except RuntimeError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return {"ok": True, "state": state.model_dump(mode="json")}

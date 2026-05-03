@@ -25,9 +25,13 @@ class ScpiCommandRequest(BaseModel):
     command: str = Field(min_length=1, max_length=256)
 
 
+RecordingFormat = Literal["npz", "csv"]
+
+
 class RecordingStartRequest(BaseModel):
     label: str = Field(min_length=1, max_length=64)
     duration_s: float | None = Field(default=5.0, gt=0, le=3600)
+    format: RecordingFormat = "npz"
 
 
 class DatasetSummary(BaseModel):

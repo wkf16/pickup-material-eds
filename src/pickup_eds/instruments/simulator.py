@@ -57,6 +57,7 @@ class SimulatedBenchService:
         ]
         self._record_times: list[np.ndarray] = []
         self._record_values: list[np.ndarray] = []
+        self._record_format: str = "npz"
         self._daq_state: str = "running"
         self._daq_channels: list[str] = ["ai0"]
         self._daq_terminal: str = "RSE"
@@ -146,12 +147,13 @@ class SimulatedBenchService:
         await self._broadcast_state()
         return await self.snapshot_state()
 
-    async def start_recording(self, label: str, duration_s: float | None) -> AppState:
+    async def start_recording(self, label: str, duration_s: float | None, format: str = "npz") -> AppState:
         async with self._lock:
             if self._recording.active:
                 raise RuntimeError("recording already active")
             self._record_times = []
             self._record_values = []
+            self._record_format = format
             self._recording = RecordingState(
                 active=True,
                 label=label,
@@ -206,6 +208,7 @@ class SimulatedBenchService:
                 times=times,
                 values=values,
                 sample_rate_hz=self._settings.sample_rate_hz,
+                format=self._record_format,
             )
             async with self._lock:
                 self._datasets = [summary, *self._datasets][:20]

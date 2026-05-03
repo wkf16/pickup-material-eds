@@ -58,12 +58,29 @@ class StorageManager:
         times: np.ndarray,
         values: np.ndarray,
         sample_rate_hz: int,
+        format: str = "npz",
     ) -> DatasetSummary:
+        if format not in {"npz", "csv"}:
+            raise ValueError(f"unsupported recording format: {format!r}")
         created_at = datetime.now(UTC)
         dataset_id = f"{created_at.strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:8]}"
         safe_label = label.replace(" ", "_")
-        file_path = self._recordings_dir / f"{created_at.strftime('%Y%m%d_%H%M%S')}_{safe_label}.npz"
-        np.savez_compressed(file_path, time_s=times, value=values.astype(np.float32))
+        ext = "npz" if format == "npz" else "csv"
+        file_path = self._recordings_dir / f"{created_at.strftime('%Y%m%d_%H%M%S')}_{safe_label}.{ext}"
+        if format == "npz":
+            np.savez_compressed(file_path, time_s=times, value=values.astype(np.float32))
+        else:
+            # Two-column CSV with header. float32 keeps disk size sane while
+            # remaining lossless for typical voltage ranges (±10 V).
+            stacked = np.column_stack([times.astype(np.float64), values.astype(np.float32)])
+            np.savetxt(
+                file_path,
+                stacked,
+                delimiter=",",
+                header="time_s,value",
+                comments="",
+                fmt=("%.7f", "%.6e"),
+            )
         summary = DatasetSummary(
             id=dataset_id,
             label=label,
@@ -123,9 +140,14 @@ class StorageManager:
         summary = self.get_dataset(dataset_id)
         if summary is None:
             return None
-        payload = np.load(summary.file_path)
-        times = payload["time_s"]
-        values = payload["value"]
+        if summary.file_path.endswith(".csv"):
+            arr = np.loadtxt(summary.file_path, delimiter=",", skiprows=1)
+            times = arr[:, 0]
+            values = arr[:, 1]
+        else:
+            payload = np.load(summary.file_path)
+            times = payload["time_s"]
+            values = payload["value"]
         times, values = decimate_pair(times, values, max_points=max_points)
         return {
             "id": summary.id,

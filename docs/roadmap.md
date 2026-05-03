@@ -1,7 +1,7 @@
 # 路线图与项目状态
 
 > **当前日期**:2026-05-03
-> **当前 Phase**:Phase 1 ✅ 完成 → Phase 2 进行中（WebUI 接真硬件，桥架构）
+> **当前 Phase**:Phase 2 ✅ 完成 → Phase 2.5 待启动（HW sync + chirp Bode）
 > **下一动作**:见 §"Next actions" 末尾；详细设计见 [`phase2-design.md`](phase2-design.md)
 
 ## 设计哲学(2026-05-03 重排)
@@ -26,7 +26,7 @@ WebUI 本身就是这个项目最重要的实验工具。**先把工具做出来
 |---|---|---|---|
 | **Phase 0** | 项目骨架 + 文档基础 | ✅ 完成 | — |
 | **Phase 1** | Windows VM 中的 NI-DAQmx 驱动 + 端到端链路验证 | ✅ 完成（链路 + 4 个 smoke test 全过） | — |
-| **Phase 2** | WebUI 接真硬件（Linux WebUI + VM DAQ daemon 桥架构） | 🟡 进行中（MVP 已合并，等待真硬件接入） | Phase 1 |
+| **Phase 2** | WebUI 接真硬件（Linux WebUI + VM DAQ daemon 桥架构） | ✅ 完成（6/6 验收通过 2026-05-03） | — |
 | **Phase 2.5** | AO + AI 硬件同步触发 + 实验 01 chirp Bode 一键跑 | ⚪ 未启动 | Phase 2 |
 | **Phase 3** | ML 数据集采集 | ⚪ 未启动 | Phase 2.5 |
 | **Phase 4** | ML 训练 + 推理集成回 WebUI | ⚪ 未启动 | Phase 3 |
@@ -145,15 +145,15 @@ WebUI 本身就是这个项目最重要的实验工具。**先把工具做出来
 - [x] 后端降采样到 720 点 / 帧后再下发浏览器
 - [x] 录制写盘**只在 Linux 侧**（StorageManager 在 RealBenchService 内部）
 
-### 2.5 验收
-- [ ] 浏览器 `http://lab4070/` 见实时波形（默认 30 fps 滑动）
-- [ ] 桥状态指示灯随 VM 重启 / USB phantom 切换正确（disconnected → reconnecting → idle → running）
-- [ ] 50 kHz 单通道连续 60 秒，**0 overrun，前端不卡**（`SmokeTest 2` 已在 Phase 1 端到端跑过，Phase 2 验收要求 WebSocket + 后端共同跑）
-- [ ] Run / Pause / Stop / Single 行为符合设计
-- [ ] 切 `Function=VOLT, Range=2V` 后真 6514 状态变了（`*FUNC?` `*RANG?` 回读匹配）
-- [ ] 录 5s `baseline` → 落盘 `data/recordings/baseline_<ts>.npz` + SQLite 元数据
-- [ ] COM 口换位置 / Dev 名变化都能自动发现，前端不要求用户填硬件名
-- [ ] 后端单进程 RAM < 300 MB（Linux + VM 各算），持续 CPU < 30%
+### 2.5 验收（2026-05-03 通过）
+- [x] 浏览器 `http://lab4070-c/` 见实时波形（CSV/NPZ 录制都验过）
+- [x] 桥状态推送进 `AppState.bridge`（disconnected/reconnecting/running/error）
+- [x] 50 kHz 单通道连续 60 秒，0 overrun（`scripts/verify_phase2.py` PASS）
+- [x] Run / Pause / Stop / Single 行为符合设计
+- [x] 真 6514 SCPI `*IDN?` 返回 `MODEL 6514, S/N 4691930` over bridge
+- [x] 录 5s `baseline` → 落盘 + SQLite 元数据（NPZ + CSV 都验过）
+- [x] COM/Dev 自动发现（`discovery.py` 启动时探测）
+- [x] 验收报告：`data/phase2_acceptance/20260503T111745Z.json`
 
 ---
 

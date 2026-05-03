@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Pickup VM (Windows)
+Comment=Open the pickup-win10-ltsc Windows VM via SPICE
+Exec=remote-viewer --full-screen spice://localhost:5900
+Icon=display
+Terminal=false
+Categories=System;Utility;
+StartupNotify=false

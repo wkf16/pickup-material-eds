@@ -224,6 +224,7 @@ class RealBenchService:
         self._scpi_port: str = "(not connected)"
         self._record_times: list[np.ndarray] = []
         self._record_values: list[np.ndarray] = []
+        self._record_format: str = "npz"
         self._lock = asyncio.Lock()
         self._state_watchers: set[asyncio.Queue[dict[str, object]]] = set()
         self._stream_seq = 0
@@ -406,12 +407,13 @@ class RealBenchService:
 
     # ─── Recording ─────────────────────────────────────────────
 
-    async def start_recording(self, label: str, duration_s: float | None) -> AppState:
+    async def start_recording(self, label: str, duration_s: float | None, format: str = "npz") -> AppState:
         async with self._lock:
             if self._recording.active:
                 raise RuntimeError("recording already active")
             self._record_times = []
             self._record_values = []
+            self._record_format = format
             self._recording = RecordingState(
                 active=True,
                 label=label,
@@ -457,7 +459,9 @@ class RealBenchService:
         summary = None
         if len(times) and len(values):
             summary = self._storage.save_recording(
-                label=label, times=times, values=values, sample_rate_hz=self._sample_rate_hz
+                label=label, times=times, values=values,
+                sample_rate_hz=self._sample_rate_hz,
+                format=self._record_format,
             )
             async with self._lock:
                 self._datasets = [summary, *self._datasets][:20]

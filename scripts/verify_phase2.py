@@ -156,7 +156,7 @@ async def main() -> int:
     started_at = datetime.now(UTC)
     print(f">> verifying {webui}")
     results = []
-    async with httpx.AsyncClient(timeout=30.0) as http:
+    async with httpx.AsyncClient(timeout=30.0, trust_env=False) as http:
         results.append(await check("health+bridge_running",  c1_health(http, webui)))
         results.append(await check("scpi *IDN?",              c2_scpi_idn(http, webui)))
         results.append(await check("daq run/pause/stop",     c3_daq_run_pause_stop(http, webui)))
