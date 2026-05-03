@@ -64,6 +64,8 @@ class SimulatedBenchService:
         self._daq_range_v: float = 10.0
         self._daq_samples_emitted: int = 0
         self._ao = AoState()
+        self._display_window_s: float = settings.stream_window_s
+        self._stream_points: int = settings.stream_points
         self._lock = asyncio.Lock()
         self._state_watchers: set[asyncio.Queue[dict[str, object]]] = set()
         self._stream_seq = 0
@@ -97,10 +99,10 @@ class SimulatedBenchService:
     def _daq_snapshot(self) -> DaqState:
         return DaqState(
             sample_rate_hz=self._settings.sample_rate_hz,
-            display_window_s=self._settings.stream_window_s,
+            display_window_s=self._display_window_s,
             live_rms=self._last_rms,
             live_peak=self._last_peak,
-            display_points=self._settings.stream_points,
+            display_points=self._stream_points,
             state=self._daq_state,  # type: ignore[arg-type]
             channels=list(self._daq_channels),
             terminal=self._daq_terminal,  # type: ignore[arg-type]
@@ -342,7 +344,7 @@ class SimulatedBenchService:
         return await self.snapshot_state()
 
     async def stream_frame(self) -> dict[str, object]:
-        max_samples = int(self._settings.sample_rate_hz * self._settings.stream_window_s)
+        max_samples = int(self._settings.sample_rate_hz * self._display_window_s)
         times, values = self._buffer.tail(max_samples=max_samples)
         if len(times) == 0:
             return {
@@ -354,7 +356,7 @@ class SimulatedBenchService:
                 "peak": 0.0,
             }
         times = times - times[0]
-        times, values = decimate_pair(times, values, max_points=self._settings.stream_points)
+        times, values = decimate_pair(times, values, max_points=self._stream_points)
         self._stream_seq += 1
         return {
             "seq": self._stream_seq,
@@ -364,6 +366,16 @@ class SimulatedBenchService:
             "rms": round(self._last_rms, 6),
             "peak": round(self._last_peak, 6),
         }
+
+    async def set_display(self, *, window_s: float | None = None,
+                          stream_points: int | None = None) -> AppState:
+        async with self._lock:
+            if window_s is not None and 0.05 <= window_s <= 600:
+                self._display_window_s = float(window_s)
+            if stream_points is not None and 100 <= stream_points <= 8000:
+                self._stream_points = int(stream_points)
+        await self._broadcast_state()
+        return await self.snapshot_state()
 
     def add_state_watcher(self) -> asyncio.Queue[dict[str, object]]:
         queue: asyncio.Queue[dict[str, object]] = asyncio.Queue(maxsize=4)

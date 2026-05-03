@@ -53,6 +53,10 @@ class BenchServiceProtocol(Protocol):
     # Live stream frame for /ws/stream (decimated, JSON-friendly).
     async def stream_frame(self) -> dict[str, object]: ...
 
+    # Browser-side display tuning (does not affect underlying DAQ task).
+    async def set_display(self, *, window_s: float | None = None,
+                          stream_points: int | None = None) -> AppState: ...
+
     # DAQ task control (Phase 2 additions; simulator implements as no-op
     # equivalents that mutate display-only state).
     async def daq_run(self, config: dict[str, Any]) -> AppState: ...

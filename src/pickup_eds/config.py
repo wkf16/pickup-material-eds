@@ -25,7 +25,7 @@ def load_settings() -> Settings:
         port=int(os.getenv("PICKUP_EDS_PORT", "8000")),
         sample_rate_hz=sample_rate_hz,
         buffer_seconds=buffer_seconds,
-        stream_points=int(os.getenv("PICKUP_EDS_STREAM_POINTS", "720")),
+        stream_points=int(os.getenv("PICKUP_EDS_STREAM_POINTS", "2000")),
         stream_window_s=float(os.getenv("PICKUP_EDS_STREAM_WINDOW_S", "8")),
     )
 

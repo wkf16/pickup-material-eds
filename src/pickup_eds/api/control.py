@@ -113,3 +113,19 @@ async def ao_start(payload: AoStartRequest, request: Request) -> dict[str, objec
 async def ao_stop(request: Request) -> dict[str, object]:
     state = await _service(request).ao_stop()
     return {"ok": True, "state": state.model_dump(mode="json")}
+
+
+# ─── Display tuning (browser-side; doesn't change DAQ task) ──────────────
+
+class DisplayRequest(BaseModel):
+    window_s: float | None = Field(default=None, gt=0, le=600)
+    stream_points: int | None = Field(default=None, ge=100, le=8000)
+
+
+@router.post("/display")
+async def set_display(payload: DisplayRequest, request: Request) -> dict[str, object]:
+    state = await _service(request).set_display(
+        window_s=payload.window_s,
+        stream_points=payload.stream_points,
+    )
+    return {"ok": True, "state": state.model_dump(mode="json")}

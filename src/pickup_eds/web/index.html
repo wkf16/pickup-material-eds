@@ -237,6 +237,19 @@ body[data-active-tab="ao"]     [data-tab]:not([data-tab~="ao"])     { display: n
 .daq-buttons button { padding: 8px 18px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; font-weight: 600; }
 .daq-buttons button.stop { color: #ff6b6b; border-color: #ff6b6b66; }
 
+/* Scope (Live tab waveform) */
+.scope-card canvas {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 4.5;
+  background: #09131a;
+  border-radius: 8px;
+  display: block;
+}
+.scope-controls { display: flex; gap: 16px; margin: 6px 0 12px; flex-wrap: wrap; }
+.scope-controls label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-muted); }
+.scope-controls select { padding: 4px 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; color: var(--ink); }
+
 /* ---------------- Grid ---------------- */
 .grid {
   display: grid;
@@ -922,12 +935,35 @@ input[type="number"]:focus {
             <h2>实时波形</h2>
             <span id="waveLabel">0 points</span>
           </div>
-          <canvas id="waveCanvas" width="960" height="360"></canvas>
-          <div class="card-subhead">
-            <h3>频谱预览</h3>
-            <span>client-side FFT</span>
+          <div class="scope-controls">
+            <label>
+              <span>Y 范围</span>
+              <select id="yScaleMode">
+                <option value="auto" selected>自适应</option>
+                <option value="10">±10 V</option>
+                <option value="5">±5 V</option>
+                <option value="2">±2 V</option>
+                <option value="1">±1 V</option>
+                <option value="0.5">±0.5 V</option>
+                <option value="0.2">±0.2 V</option>
+                <option value="0.1">±0.1 V</option>
+                <option value="0.05">±50 mV</option>
+              </select>
+            </label>
+            <label>
+              <span>显示窗口</span>
+              <select id="windowSec">
+                <option value="0.5">0.5 s</option>
+                <option value="1">1 s</option>
+                <option value="2">2 s</option>
+                <option value="5">5 s</option>
+                <option value="8" selected>8 s</option>
+                <option value="20">20 s</option>
+                <option value="60">60 s</option>
+              </select>
+            </label>
           </div>
-          <canvas id="spectrumCanvas" width="960" height="240"></canvas>
+          <canvas id="waveCanvas" width="1920" height="540"></canvas>
         </section>
 
         <section class="card recording-card" data-tab="record">
@@ -1342,8 +1378,9 @@ const el = {
   zeroCheckToggle: document.getElementById("zeroCheckToggle"),
   zeroCorrectToggle: document.getElementById("zeroCorrectToggle"),
   waveCanvas: document.getElementById("waveCanvas"),
-  spectrumCanvas: document.getElementById("spectrumCanvas"),
   previewCanvas: document.getElementById("previewCanvas"),
+  yScaleMode: document.getElementById("yScaleMode"),
+  windowSec: document.getElementById("windowSec"),
   // Phase 2 additions
   bridgeDot: document.getElementById("bridgeDot"),
   bridgeText: document.getElementById("bridgeText"),
@@ -1502,7 +1539,59 @@ function renderDatasets(items) {
   });
 }
 
-function drawSeries(canvas, xs, ys, { accent = "#7effb2", fill = true } = {}) {
+// ─── Oscilloscope renderer ────────────────────────────────────────────
+//
+// Real ticks + labels on both axes. Y autoscale uses a 2-second high-water
+// mark with "nice" rounding so the range doesn't jitter every 100 ms.
+
+const PAD = { left: 56, right: 12, top: 8, bottom: 28 };
+
+const yAuto = { ceiling: 0.1, lastUpdate: 0, peakHistory: [] };
+
+function niceCeiling(absMax) {
+  // Round absMax up to a "nice" volt-scale step. Keeps Y-ticks readable.
+  if (absMax <= 0.05) return 0.05;
+  if (absMax <= 0.1) return 0.1;
+  if (absMax <= 0.2) return 0.2;
+  if (absMax <= 0.5) return 0.5;
+  if (absMax <= 1) return 1;
+  if (absMax <= 2) return 2;
+  if (absMax <= 5) return 5;
+  return 10;
+}
+
+function niceTimeTicks(durationS, maxTicks = 10) {
+  const step = niceStep(durationS / maxTicks);
+  const ticks = [];
+  for (let t = 0; t <= durationS + 1e-9; t += step) ticks.push(t);
+  return { step, ticks };
+}
+
+function niceStep(raw) {
+  if (raw <= 0) return 1;
+  const exp = Math.floor(Math.log10(raw));
+  const base = Math.pow(10, exp);
+  const m = raw / base;
+  let nice;
+  if (m <= 1) nice = 1;
+  else if (m <= 2) nice = 2;
+  else if (m <= 5) nice = 5;
+  else nice = 10;
+  return nice * base;
+}
+
+function fmtTime(t) {
+  if (Math.abs(t) < 1e-3) return `${(t * 1e6).toFixed(0)} µs`;
+  if (Math.abs(t) < 1) return `${(t * 1e3).toFixed(0)} ms`;
+  return `${t.toFixed(t < 10 ? 2 : 1)} s`;
+}
+
+function fmtVolt(v) {
+  if (Math.abs(v) < 0.1) return `${(v * 1e3).toFixed(0)} mV`;
+  return `${v.toFixed(2)} V`;
+}
+
+function drawScope(canvas, xs, ys, { accent = "#7effb2", yMode = "auto" } = {}) {
   const ctx = canvas.getContext("2d");
   const width = canvas.width;
   const height = canvas.height;
@@ -1510,93 +1599,140 @@ function drawSeries(canvas, xs, ys, { accent = "#7effb2", fill = true } = {}) {
   ctx.fillStyle = "#09131a";
   ctx.fillRect(0, 0, width, height);
 
-  ctx.strokeStyle = "rgba(255,255,255,0.08)";
-  ctx.lineWidth = 1;
-  for (let i = 1; i < 6; i += 1) {
-    const y = (height / 6) * i;
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(width, y);
-    ctx.stroke();
-  }
+  // Plot area
+  const px0 = PAD.left;
+  const px1 = width - PAD.right;
+  const py0 = PAD.top;
+  const py1 = height - PAD.bottom;
+  const plotW = px1 - px0;
+  const plotH = py1 - py0;
 
   if (!xs.length || !ys.length) {
+    ctx.strokeStyle = "#1a2a35";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(px0, py0, plotW, plotH);
     return;
   }
 
+  // X range = first->last sample's relative time (frame.time_s starts at 0)
   const minX = xs[0];
   const maxX = xs[xs.length - 1];
-  let minY = Math.min(...ys);
-  let maxY = Math.max(...ys);
-  if (Math.abs(maxY - minY) < 1e-9) {
-    minY -= 1;
-    maxY += 1;
-  }
+  const durationS = maxX - minX || 1e-6;
 
-  const xScale = (value) => ((value - minX) / (maxX - minX || 1)) * width;
-  const yScale = (value) => height - ((value - minY) / (maxY - minY || 1)) * height;
-
-  if (fill) {
-    const gradient = ctx.createLinearGradient(0, 0, 0, height);
-    gradient.addColorStop(0, "rgba(126,255,178,0.26)");
-    gradient.addColorStop(1, "rgba(126,255,178,0)");
-    ctx.beginPath();
-    ctx.moveTo(xScale(xs[0]), height);
-    ys.forEach((value, index) => {
-      ctx.lineTo(xScale(xs[index]), yScale(value));
-    });
-    ctx.lineTo(xScale(xs[xs.length - 1]), height);
-    ctx.closePath();
-    ctx.fillStyle = gradient;
-    ctx.fill();
-  }
-
-  ctx.beginPath();
-  ys.forEach((value, index) => {
-    const x = xScale(xs[index]);
-    const y = yScale(value);
-    if (index === 0) {
-      ctx.moveTo(x, y);
-    } else {
-      ctx.lineTo(x, y);
+  // Y range
+  let yMin, yMax;
+  if (yMode === "auto") {
+    // Track 2-second high-water peak so Y doesn't jitter per frame.
+    const now = performance.now();
+    const peakNow = Math.max(Math.abs(Math.min(...ys)), Math.abs(Math.max(...ys)));
+    yAuto.peakHistory.push({ t: now, peak: peakNow });
+    yAuto.peakHistory = yAuto.peakHistory.filter((p) => now - p.t < 2000);
+    const window2sPeak = yAuto.peakHistory.reduce((m, p) => Math.max(m, p.peak), 0);
+    const targetCeiling = niceCeiling(Math.max(window2sPeak * 1.15, 0.02));
+    // Slow down rapid downward changes — only shrink when the live peak has
+    // stayed below the smaller ceiling for ~1 s.
+    if (targetCeiling >= yAuto.ceiling) {
+      yAuto.ceiling = targetCeiling;
+      yAuto.lastUpdate = now;
+    } else if (now - yAuto.lastUpdate > 1000) {
+      yAuto.ceiling = targetCeiling;
+      yAuto.lastUpdate = now;
     }
-  });
+    yMax = yAuto.ceiling;
+    yMin = -yAuto.ceiling;
+  } else {
+    const fixed = parseFloat(yMode);
+    yMax = fixed;
+    yMin = -fixed;
+  }
+  if (Math.abs(yMax - yMin) < 1e-9) { yMin -= 1; yMax += 1; }
+
+  const xScale = (v) => px0 + ((v - minX) / (maxX - minX || 1)) * plotW;
+  const yScale = (v) => py0 + (1 - (v - yMin) / (yMax - yMin)) * plotH;
+
+  // Grid + axis labels
+  ctx.strokeStyle = "rgba(255,255,255,0.08)";
+  ctx.fillStyle = "rgba(190,210,222,0.7)";
+  ctx.lineWidth = 1;
+  ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+
+  // Y grid: 5 divisions across yMin..yMax
+  const yDivs = 5;
+  const yStep = (yMax - yMin) / yDivs;
+  for (let i = 0; i <= yDivs; i++) {
+    const v = yMin + yStep * i;
+    const y = yScale(v);
+    ctx.beginPath();
+    ctx.moveTo(px0, y);
+    ctx.lineTo(px1, y);
+    ctx.stroke();
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText(fmtVolt(v), px0 - 6, y);
+  }
+
+  // Zero line, slightly stronger
+  if (yMin <= 0 && 0 <= yMax) {
+    ctx.strokeStyle = "rgba(255,255,255,0.18)";
+    const y = yScale(0);
+    ctx.beginPath();
+    ctx.moveTo(px0, y);
+    ctx.lineTo(px1, y);
+    ctx.stroke();
+  }
+
+  // X grid + ticks
+  ctx.strokeStyle = "rgba(255,255,255,0.08)";
+  const { step: tStep, ticks: tTicks } = niceTimeTicks(durationS, 10);
+  for (const t of tTicks) {
+    const x = xScale(minX + t);
+    ctx.beginPath();
+    ctx.moveTo(x, py0);
+    ctx.lineTo(x, py1);
+    ctx.stroke();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText(fmtTime(t), x, py1 + 4);
+  }
+
+  // Plot frame
+  ctx.strokeStyle = "#1a2a35";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(px0, py0, plotW, plotH);
+
+  // Polyline (no dot markers — true scope look)
+  ctx.beginPath();
+  let started = false;
+  for (let i = 0; i < ys.length; i++) {
+    const v = ys[i];
+    if (!Number.isFinite(v)) continue;
+    const x = xScale(xs[i]);
+    const y = yScale(v);
+    if (!started) { ctx.moveTo(x, y); started = true; }
+    else { ctx.lineTo(x, y); }
+  }
   ctx.strokeStyle = accent;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 1.2;
+  ctx.lineJoin = "round";
   ctx.stroke();
+
+  // Legend (top-right corner): Y range
+  ctx.fillStyle = "rgba(190,210,222,0.55)";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "top";
+  ctx.fillText(`${fmtVolt(yMin)} … ${fmtVolt(yMax)}`, px1 - 4, py0 + 2);
 }
 
-function computeSpectrum(values) {
-  const windowSize = Math.min(256, values.length);
-  if (windowSize < 32) {
-    return { freqs: [], mags: [] };
-  }
-  const slice = values.slice(values.length - windowSize);
-  const freqs = [];
-  const mags = [];
-  for (let k = 1; k < 64; k += 1) {
-    let real = 0;
-    let imag = 0;
-    for (let n = 0; n < windowSize; n += 1) {
-      const angle = (2 * Math.PI * k * n) / windowSize;
-      real += slice[n] * Math.cos(angle);
-      imag -= slice[n] * Math.sin(angle);
-    }
-    freqs.push(k);
-    mags.push(Math.sqrt(real * real + imag * imag) / windowSize);
-  }
-  return { freqs, mags };
+// Backwards-compat wrapper used by preview drawing
+function drawSeries(canvas, xs, ys, opts = {}) {
+  drawScope(canvas, xs, ys, opts);
 }
 
 function renderLiveFrame(frame) {
   state.liveFrame = frame;
-  el.waveLabel.textContent = `${frame.value.length} points`;
-  drawSeries(el.waveCanvas, frame.time_s, frame.value, { accent: "#7effb2", fill: true });
-  const spectrum = computeSpectrum(frame.value);
-  drawSeries(el.spectrumCanvas, spectrum.freqs, spectrum.mags, {
-    accent: "#ffb24d",
-    fill: false,
-  });
+  el.waveLabel.textContent = `${frame.value.length} pts · ${frame.sample_rate_hz} Hz`;
+  const yMode = (el.yScaleMode && el.yScaleMode.value) || "auto";
+  drawScope(el.waveCanvas, frame.time_s, frame.value, { accent: "#7effb2", yMode });
 }
 
 async function previewDataset(datasetId) {
@@ -1763,6 +1899,17 @@ function bindTabs() {
   setActiveTab("live");
 }
 
+function bindScopeControls() {
+  if (el.windowSec) {
+    el.windowSec.addEventListener("change", async () => {
+      try {
+        await submitJSON("/api/control/display", { window_s: Number(el.windowSec.value) });
+      } catch (e) { showToast(`窗口设置失败: ${e.message}`, "error"); }
+    });
+  }
+  // yScaleMode is purely client-side, no backend call needed
+}
+
 function renderBridgeStatus(appState) {
   const b = appState && appState.bridge;
   if (!b) {
@@ -1854,6 +2001,7 @@ async function bootstrap() {
   bindTabs();
   bindDaqButtons();
   bindAoButtons();
+  bindScopeControls();
   try {
     const appState = await api("/api/state");
     renderState(appState);
