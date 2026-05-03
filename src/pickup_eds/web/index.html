@@ -1549,7 +1549,9 @@ function renderDatasets(items) {
 // Real ticks + labels on both axes. Y autoscale uses a 2-second high-water
 // mark with "nice" rounding so the range doesn't jitter every 100 ms.
 
-const PAD = { left: 56, right: 12, top: 8, bottom: 28 };
+const PAD = { left: 78, right: 18, top: 14, bottom: 38 };
+const SCOPE_FONT = "14px ui-monospace, SFMono-Regular, Menlo, monospace";
+const SCOPE_LEGEND_FONT = "13px ui-monospace, SFMono-Regular, Menlo, monospace";
 
 const yAuto = { ceiling: 0.1, lastUpdate: 0, peakHistory: [] };
 
@@ -1657,9 +1659,9 @@ function drawScope(canvas, xs, ys, { accent = "#7effb2", yMode = "auto" } = {}) 
 
   // Grid + axis labels
   ctx.strokeStyle = "rgba(255,255,255,0.08)";
-  ctx.fillStyle = "rgba(190,210,222,0.7)";
+  ctx.fillStyle = "rgba(220,235,245,0.85)";
   ctx.lineWidth = 1;
-  ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.font = SCOPE_FONT;
 
   // Y grid: 5 divisions across yMin..yMax
   const yDivs = 5;
@@ -1673,7 +1675,7 @@ function drawScope(canvas, xs, ys, { accent = "#7effb2", yMode = "auto" } = {}) 
     ctx.stroke();
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
-    ctx.fillText(fmtVolt(v), px0 - 6, y);
+    ctx.fillText(fmtVolt(v), px0 - 8, y);
   }
 
   // Zero line, slightly stronger
@@ -1697,7 +1699,7 @@ function drawScope(canvas, xs, ys, { accent = "#7effb2", yMode = "auto" } = {}) 
     ctx.stroke();
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    ctx.fillText(fmtTime(t), x, py1 + 4);
+    ctx.fillText(fmtTime(t), x, py1 + 6);
   }
 
   // Plot frame
@@ -1722,10 +1724,11 @@ function drawScope(canvas, xs, ys, { accent = "#7effb2", yMode = "auto" } = {}) 
   ctx.stroke();
 
   // Legend (top-right corner): Y range
-  ctx.fillStyle = "rgba(190,210,222,0.55)";
+  ctx.font = SCOPE_LEGEND_FONT;
+  ctx.fillStyle = "rgba(220,235,245,0.7)";
   ctx.textAlign = "right";
   ctx.textBaseline = "top";
-  ctx.fillText(`${fmtVolt(yMin)} … ${fmtVolt(yMax)}`, px1 - 4, py0 + 2);
+  ctx.fillText(`${fmtVolt(yMin)} … ${fmtVolt(yMax)}`, px1 - 6, py0 + 4);
 }
 
 // Backwards-compat wrapper used by preview drawing
