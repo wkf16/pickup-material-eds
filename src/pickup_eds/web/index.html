@@ -291,19 +291,15 @@ body[data-active-tab="ao"]     [data-tab]:not([data-tab~="ao"])     { display: n
 }
 
 .scope-card,
-.dataset-card,
 .tutorial-card { grid-column: 2; }
 
 .control-card,
-.recording-card,
 .scpi-card     { grid-column: 1; }
 
+.recording-card,
+.dataset-card,
 .preview-card,
 .contract-card { grid-column: 1 / -1; }
-
-/* Record tab: dataset list + preview only — span both columns */
-body[data-active-tab="record"] .dataset-card,
-body[data-active-tab="record"] .preview-card { grid-column: 1 / -1; }
 
 .scpi-card {
   display: flex;

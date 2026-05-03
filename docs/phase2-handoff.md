@@ -77,15 +77,19 @@ Nothing manual. The chain is:
 
 ```
 host boots
-  └─ libvirtd autostart       (already enabled)
-      └─ VM autostart          (just enabled)
-          └─ pickup-eds-vm-recovery.service  (host-side USB rebind, +30 s)
-              └─ Windows boots
-                  └─ PickupEdsFirstBoot      (NI services + USB probe, +30 s after Windows)
-                      └─ PickupEdsDaqDaemon  (FastAPI :8765, +60 s after Windows)
+  ├─ libvirtd.service                       (enabled)
+  │   └─ VM autostart                       (virsh autostart pickup-win10-ltsc)
+  │       └─ Windows boots
+  │           ├─ PickupEdsFirstBoot         (+30 s after Windows: NI services, USB phantom rescue)
+  │           └─ PickupEdsDaqDaemon         (+60 s after Windows: FastAPI :8765)
+  ├─ pickup-eds-vm-recovery.service         (host-side USB rebind, +30 s after libvirtd)
+  └─ pickup-eds-webui.service               (FastAPI :80, bridge mode, after multi-user.target)
 ```
 
-End-to-end, the daemon is reachable on `http://192.168.122.8:8765` within ~3 minutes of host power-on.
+End-to-end, you can hit `http://lab4070-c/` within ~3 min of host power-on.
+The webui starts immediately and goes through bridge `disconnected →
+reconnecting → running` while the VM is still booting; the user just
+sees the bridge dot pulse yellow then turn green.
 
 ### Failure isolation
 

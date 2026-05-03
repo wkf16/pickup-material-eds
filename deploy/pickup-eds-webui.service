@@ -1,16 +1,41 @@
 [Unit]
-Description=pickup-material-eds WebUI
-After=network-online.target
+Description=pickup-material-eds WebUI (FastAPI :80, bridge mode)
+Documentation=https://github.com/okonfu/pickup-material-eds#deployment
+After=network-online.target libvirtd.service pickup-eds-vm-recovery.service
 Wants=network-online.target
+# Best-effort wait for the VM daq daemon to come up first; bridge state
+# machine handles "not yet" transparently anyway.
+After=pickup-eds-vm-recovery.service
 
 [Service]
 Type=simple
+User=a203
+Group=a203
 WorkingDirectory=/home/a203/pickup-material-eds-webui
+
+# Bridge mode: hit the Windows VM daq daemon. Override via systemctl edit
+# if you want simulator-only mode.
+Environment=PICKUP_EDS_BRIDGE_URL=ws://192.168.122.8:8765/ws/raw_stream
 Environment=PICKUP_EDS_HOST=0.0.0.0
-Environment=PICKUP_EDS_PORT=8000
-ExecStart=/home/a203/pickup-material-eds-webui/.venv/bin/python -m uvicorn pickup_eds.api.main:app --host 0.0.0.0 --port 8000
-Restart=always
-RestartSec=2
+Environment=PICKUP_EDS_PORT=80
+
+# Bind port 80 without root: ambient capability handles it cleanly,
+# no sudo, no per-deploy ad-hoc port mangling.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=yes
+
+ExecStart=/home/a203/pickup-material-eds-webui/.venv/bin/python -m uvicorn pickup_eds.api.main:app --host 0.0.0.0 --port 80
+
+# Logs go to journal; tail with `journalctl -u pickup-eds-webui -f`
+StandardOutput=journal
+StandardError=journal
+
+# Recover from crashes; back off 5s so we don't busy-loop on a real bug.
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=120
+StartLimitBurst=10
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
