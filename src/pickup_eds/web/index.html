@@ -277,6 +277,10 @@ body[data-active-tab="ao"]     [data-tab]:not([data-tab~="ao"])     { display: n
 .preview-card,
 .contract-card { grid-column: 1 / -1; }
 
+/* Record tab: dataset list + preview only — span both columns */
+body[data-active-tab="record"] .dataset-card,
+body[data-active-tab="record"] .preview-card { grid-column: 1 / -1; }
+
 .scpi-card {
   display: flex;
   flex-direction: column;
@@ -875,12 +879,12 @@ input[type="number"]:focus {
       <main class="grid">
         <section class="card control-card" data-tab="live">
           <div class="card-head">
-            <h2>仪器控制</h2>
+            <h2>采集控制</h2>
             <span id="updatedAt">-</span>
           </div>
 
           <div class="group">
-            <p class="group-title">Function</p>
+            <p class="group-title">6514 · Function</p>
             <div class="pill-row" id="functionButtons">
               <button data-func="VOLT">VOLT</button>
               <button data-func="CURR">CURR</button>
@@ -890,7 +894,7 @@ input[type="number"]:focus {
           </div>
 
           <div class="group">
-            <p class="group-title">Range</p>
+            <p class="group-title">6514 · Range</p>
             <div class="pill-row" id="rangeButtons">
               <button data-range="0.2">0.2</button>
               <button data-range="2">2</button>
@@ -910,18 +914,60 @@ input[type="number"]:focus {
             </label>
           </div>
 
-          <div class="stats">
+          <div class="group">
+            <p class="group-title">DAQ <span style="opacity:0.6;font-weight:400">(USB-6002)</span> <span id="daqStateBadge" style="float:right;font-weight:600;color:var(--accent)">idle</span></p>
+            <div class="daq-config">
+              <label>采样率 (Hz)
+                <select id="daqSampleRate">
+                  <option value="1000">1k</option>
+                  <option value="5000" selected>5k</option>
+                  <option value="10000">10k</option>
+                  <option value="25000">25k</option>
+                  <option value="50000">50k</option>
+                </select>
+              </label>
+              <label>通道
+                <select id="daqChannel">
+                  <option value="ai0" selected>ai0</option>
+                  <option value="ai1">ai1</option>
+                </select>
+              </label>
+              <label>端接
+                <select id="daqTerminal">
+                  <option value="RSE" selected>RSE</option>
+                  <option value="DIFF">DIFF</option>
+                </select>
+              </label>
+              <label>量程 (V)
+                <select id="daqRange">
+                  <option value="10" selected>±10</option>
+                  <option value="5">±5</option>
+                  <option value="2">±2</option>
+                  <option value="1">±1</option>
+                </select>
+              </label>
+            </div>
+            <div class="daq-buttons">
+              <button id="btnDaqRun" class="primary">▶ Run</button>
+              <button id="btnDaqPause">⏸ Pause</button>
+              <button id="btnDaqSingle">○ Single</button>
+              <button id="btnDaqStop" class="stop">■ Stop</button>
+            </div>
+            <p class="muted-line" id="daqMeta" style="margin-top:10px;font-size:11px;color:var(--ink-muted);">— · 0 samples · 0 overruns</p>
+          </div>
+
+          <div class="stats slim">
             <article>
-              <span>Sample Rate</span>
-              <strong id="sampleRateStat">-</strong>
-            </article>
-            <article>
-              <span>Live RMS</span>
+              <span>RMS</span>
               <strong id="rmsStat">-</strong>
             </article>
             <article>
-              <span>Live Peak</span>
+              <span>Peak</span>
               <strong id="peakStat">-</strong>
+            </article>
+            <article>
+              <span>Sample Rate</span>
+              <strong id="sampleRateStat">-</strong>
             </article>
             <article>
               <span>Window</span>
@@ -966,7 +1012,7 @@ input[type="number"]:focus {
           <canvas id="waveCanvas" width="1920" height="540"></canvas>
         </section>
 
-        <section class="card recording-card" data-tab="record">
+        <section class="card recording-card" data-tab="live">
           <div class="card-head">
             <h2>录制</h2>
             <span id="recordingStateText">idle</span>
@@ -1254,47 +1300,6 @@ input[type="number"]:focus {
           </div>
         </section>
 
-        <section class="card daq-card" data-tab="live" style="grid-column: 1;">
-          <div class="card-head"><h2>DAQ 控制</h2><span id="daqStateBadge">idle</span></div>
-          <div class="daq-config">
-            <label>采样率 (Hz)
-              <select id="daqSampleRate">
-                <option value="1000">1k</option>
-                <option value="5000" selected>5k</option>
-                <option value="10000">10k</option>
-                <option value="25000">25k</option>
-                <option value="50000">50k</option>
-              </select>
-            </label>
-            <label>通道
-              <select id="daqChannel">
-                <option value="ai0" selected>ai0</option>
-                <option value="ai1">ai1</option>
-              </select>
-            </label>
-            <label>端接
-              <select id="daqTerminal">
-                <option value="RSE" selected>RSE</option>
-                <option value="DIFF">DIFF</option>
-              </select>
-            </label>
-            <label>量程 (V)
-              <select id="daqRange">
-                <option value="10" selected>±10</option>
-                <option value="5">±5</option>
-                <option value="2">±2</option>
-                <option value="1">±1</option>
-              </select>
-            </label>
-          </div>
-          <div class="daq-buttons">
-            <button id="btnDaqRun" class="primary">▶ Run</button>
-            <button id="btnDaqPause">⏸ Pause</button>
-            <button id="btnDaqSingle">○ Single</button>
-            <button id="btnDaqStop" class="stop">■ Stop</button>
-          </div>
-          <p class="muted-line" id="daqMeta" style="margin-top:10px;font-size:11px;color:var(--ink-muted);">— · 0 samples · 0 overruns</p>
-        </section>
 
         <section class="card ao-card" data-tab="ao" style="grid-column: 1 / -1;">
           <div class="card-head"><h2>输出 AO (free run)</h2><span id="aoStateBadge">idle</span></div>
